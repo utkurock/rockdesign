@@ -1,10 +1,26 @@
+<div align="center">
+
 # rockdesign
 
-A local-first design generator. Describe a UI in plain English and rockdesign
+**A local-first design generator. Describe a UI in plain English and rockdesign
 spins up a self-contained HTML mockup — driven by Claude Code under the hood,
-guided by an opinionated, editable design system.
+guided by an opinionated, editable design system.**
 
-> _Screenshot placeholder — add `docs/screenshot.png` once captured._
+[![Repo](https://img.shields.io/badge/GitHub-utkurock%2Frockdesign-181717?logo=github)](https://github.com/utkurock/rockdesign)
+[![Powered by Claude Code](https://img.shields.io/badge/Powered%20by-Claude%20Code-D97757?logo=anthropic&logoColor=white)](https://docs.claude.com/claude-code)
+[![Node 18+](https://img.shields.io/badge/Node-18%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Runs locally](https://img.shields.io/badge/runs-locally-2ea44f)](#security-model)
+
+[Features](#what-it-does) · [How it works](#how-it-works) · [Install](#install--run) · [API](#api) · [Security](#security-model)
+
+<br />
+
+<!-- Drop a screenshot at docs/screenshot.png to replace this placeholder -->
+<sub><i>Screenshot coming soon — save the UI as <code>docs/screenshot.png</code>.</i></sub>
+
+</div>
+
+---
 
 ## What it does
 
@@ -92,8 +108,33 @@ db.json                Generation history (id, prompt, file, context, cost)
 - Web snapshot: 5 MB page size, 15 s fetch timeout, public hosts only.
 - Generation: 180 s Claude timeout, 4000-char prompt cap.
 
-## Notes
+## Security model
 
-rockdesign is intentionally a single local server with no auth — it's meant to
-run on your own machine and talk to your own Claude Code session. Don't expose
-it to the public internet without putting a real auth layer in front of it.
+rockdesign is intentionally a single-user local tool. The server hardens the
+local boundary so you can run it on a shared Wi-Fi without leaking files:
+
+- **Loopback-only bind.** Listens on `127.0.0.1` by default — other machines on
+  your LAN cannot reach it. Override with `HOST=0.0.0.0` only if you know what
+  you're doing.
+- **Same-origin enforcement.** `/api/*` rejects requests with a `Host` header
+  or `Origin` that isn't this server (defeats DNS-rebinding attacks).
+- **Path probe is jailed.** `/api/check-path` resolves symlinks first and
+  refuses anything outside `$HOME`, plus a denylist (`.ssh`, `.aws`, `.gnupg`,
+  keychains, browser profiles, etc.).
+- **Generated previews are sandboxed.** `/preview/:id` is served with a strict
+  Content-Security-Policy (`connect-src 'none'`, etc.) and the UI iframes use
+  `sandbox="allow-scripts"` (unique opaque origin → cannot call the API or
+  read the parent DOM).
+- **Hardened SSRF for web grab.** `/api/grab-web` resolves the hostname,
+  rejects any private/loopback/CGNAT/link-local/metadata IP (IPv4 + IPv6), and
+  refuses redirects.
+- **Claude tool surface is locked.** Only `Write` and `Read` are exposed, and
+  the system instruction explicitly forbids reading anything outside
+  `generations/`, the listed attachment paths, and the linked local code
+  directory.
+- **No telemetry.** The only outbound traffic is (a) `claude-code` talking to
+  the Anthropic API on your behalf, and (b) `/api/grab-web` fetching the URLs
+  you explicitly paste in. Nothing else leaves the box.
+
+If you intentionally want to expose this beyond your laptop, put a reverse
+proxy with real authentication in front of it — there is no built-in auth.

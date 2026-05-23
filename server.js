@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import dns from 'dns/promises';
 import net from 'net';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,11 +24,26 @@ const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const WEB_FETCH_TIMEOUT_MS = 15_000;
 const MAX_WEB_BYTES = 5 * 1024 * 1024;
 const HOME_DIR = os.homedir();
-const PATH_PROBE_DENYLIST = [
-  '.ssh', '.aws', '.gnupg', '.config/gh', '.config/git', '.netrc',
-  '.gitconfig', 'Library/Keychains', 'Library/Application Support/Google',
-  'Library/Cookies', 'Library/Mail',
-];
+const IS_WIN = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
+
+// Sensitive paths (relative to HOME) that /api/check-path will refuse to
+// expose. Entries are arrays of segments — joined with path.sep at use site
+// so Windows and POSIX both match correctly.
+const PATH_PROBE_DENYLIST = (IS_WIN ? [
+  ['.ssh'], ['.aws'], ['.gnupg'], ['.netrc'], ['.gitconfig'],
+  ['AppData', 'Local', 'Microsoft', 'Credentials'],
+  ['AppData', 'Roaming', 'Microsoft', 'Credentials'],
+  ['AppData', 'Local', 'Google', 'Chrome', 'User Data'],
+  ['AppData', 'Local', 'Microsoft', 'Edge', 'User Data'],
+  ['AppData', 'Roaming', 'Mozilla', 'Firefox'],
+] : [
+  ['.ssh'], ['.aws'], ['.gnupg'], ['.netrc'], ['.gitconfig'],
+  ['.config', 'gh'], ['.config', 'git'],
+  ['Library', 'Keychains'], ['Library', 'Application Support', 'Google'],
+  ['Library', 'Cookies'], ['Library', 'Mail'],
+  ['.mozilla'], ['.config', 'google-chrome'], ['.config', 'chromium'],
+]).map((segs) => segs.join(path.sep));
 
 const app = express();
 app.disable('x-powered-by');
@@ -65,7 +80,7 @@ app.use(express.static(PUBLIC_DIR));
 app.use('/api', (err, _req, res, _next) => {
   const status = err?.status || err?.statusCode || 500;
   const msg = err?.type === 'entity.too.large'
-    ? 'payload too large (server limit is 200MB)'
+    ? 'payload too large (server limit is 40MB JSON / 25MB binary)'
     : (err?.message || 'server error');
   res.status(status).json({ error: msg });
 });
@@ -131,7 +146,7 @@ app.post('/api/upload', async (req, res) => {
     const buf = Buffer.from(b64, 'base64');
     if (!buf.length) return res.status(400).json({ error: 'empty file' });
     if (buf.length > MAX_UPLOAD_BYTES) {
-      return res.status(413).json({ error: 'file exceeds 120MB' });
+      return res.status(413).json({ error: 'file exceeds 25MB limit' });
     }
 
     const id = `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -344,19 +359,61 @@ app.get('/api/raw/:id', async (req, res) => {
   } catch { res.status(404).send('Not found'); }
 });
 
-const CHROME_CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
-];
+function chromeCandidatesForPlatform() {
+  if (IS_MAC) {
+    return [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      '/Applications/Arc.app/Contents/MacOS/Arc',
+    ];
+  }
+  if (IS_WIN) {
+    const pf  = process.env['ProgramFiles']      || 'C:\\Program Files';
+    const pfx = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const lapp = process.env['LOCALAPPDATA']     || path.join(HOME_DIR, 'AppData', 'Local');
+    return [
+      path.join(pf,  'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(pfx, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(lapp, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(pf,  'Google', 'Chrome Beta', 'Application', 'chrome.exe'),
+      path.join(pf,  'Chromium', 'Application', 'chrome.exe'),
+      path.join(pf,  'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+      path.join(pfx, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+      path.join(lapp, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+      path.join(pf,  'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+      path.join(pfx, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+    ];
+  }
+  // Linux + others
+  return [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/snap/bin/chromium',
+    '/snap/bin/google-chrome',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/microsoft-edge-stable',
+    '/usr/bin/brave-browser',
+    '/opt/google/chrome/chrome',
+  ];
+}
+
 let cachedChrome = null;
 async function findChrome() {
-  if (cachedChrome) return cachedChrome;
-  for (const c of CHROME_CANDIDATES) {
+  // Explicit override always wins
+  if (process.env.CHROME_PATH) {
+    try { await fs.access(process.env.CHROME_PATH); return process.env.CHROME_PATH; }
+    catch { /* fall through */ }
+  }
+  if (cachedChrome) {
+    try { await fs.access(cachedChrome); return cachedChrome; }
+    catch { cachedChrome = null; }
+  }
+  for (const c of chromeCandidatesForPlatform()) {
     try { await fs.access(c); cachedChrome = c; return c; } catch {}
   }
   return null;
@@ -374,13 +431,14 @@ app.get('/api/png/:id', async (req, res) => {
   const chrome = await findChrome();
   if (!chrome) {
     return res.status(503).json({
-      error: 'Chrome / Chromium not found. Install Google Chrome to enable PNG download.',
+      error: 'Chrome / Chromium / Edge / Brave not found. Install one of them, or set CHROME_PATH to a Chromium-based browser binary.',
     });
   }
 
   const tmp = path.join(ATTACH_DIR, `_tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`);
   await fs.mkdir(ATTACH_DIR, { recursive: true });
-  const fileUrl = 'file://' + file;
+  // pathToFileURL handles Windows ("C:\\…") -> "file:///C:/…" correctly
+  const fileUrl = pathToFileURL(file).href;
 
   try {
     await new Promise((resolve, reject) => {
