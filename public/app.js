@@ -40,6 +40,10 @@ const connBackdrop = $('#connBackdrop');
 const connClose = $('#connClose');
 const connectorsList = $('#connectorsList');
 const inputBackdrop = $('#inputBackdrop');
+const usagePill = $('#usagePill');
+const usageText = $('#usageText');
+const emptyUsage = $('#emptyUsage');
+const emptyUsageRow = $('#emptyUsageRow');
 
 let items = [];
 let activeId = null;
@@ -212,6 +216,13 @@ function buildCard(item) {
   pngBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg> PNG';
   pngBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadPng(item.id, pngBtn); });
   foot.appendChild(pngBtn);
+
+  const pushBtn = makeEl('button', 'card-act');
+  pushBtn.type = 'button';
+  pushBtn.title = ctx.github ? `Push to ${ctx.github}` : 'Connect a GitHub repo to push';
+  pushBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v5.5"/></svg> Push';
+  pushBtn.addEventListener('click', (e) => { e.stopPropagation(); pushToGitHub(item.id, pushBtn); });
+  foot.appendChild(pushBtn);
 
   const openBtn = makeEl('button', 'card-act primary');
   openBtn.type = 'button';
@@ -490,6 +501,7 @@ async function generate(e) {
     renderThread();
     renderBoard();
     renderTabs();
+    fetchUsage();
     // Smoothly scroll the new card into view
     requestAnimationFrame(() => focusBoardItem(data.id));
   } catch (err) {
@@ -1021,7 +1033,7 @@ async function openProjectRefModal() {
     fields: [{
       name: 'name',
       label: 'Project name',
-      placeholder: 'e.g. fashai prototype',
+      placeholder: 'e.g. landing-v2',
       value: ctx.projectRef || '',
       autofocus: true,
     }],
@@ -1033,23 +1045,117 @@ async function openProjectRefModal() {
 
 async function openGithubModal() {
   const values = await showInputModal({
-    title: 'GitHub connected',
-    description: 'Paste a repo URL or owner/repo. Claude will mention it as context.',
-    fields: [{
-      name: 'repo',
-      label: 'Repository',
-      placeholder: 'github.com/your-org/repo',
-      value: ctx.github || '',
-      autofocus: true,
-    }],
-    extraButton: ctx.github ? {
+    title: 'GitHub',
+    description: 'Connect a repo to push generated designs into it.',
+    fields: [
+      {
+        name: 'repo',
+        label: 'Repository',
+        placeholder: 'owner/repo or github.com/owner/repo',
+        value: ctx.github || '',
+        autofocus: !ctx.github,
+      },
+      {
+        name: 'token',
+        label: 'Personal access token',
+        type: 'password',
+        placeholder: 'ghp_…',
+        value: ctx.githubToken || '',
+        autofocus: !!ctx.github,
+        hint: 'Needs the "Contents: read & write" scope on the target repo. Stored in your browser; only sent to api.github.com.',
+      },
+      {
+        name: 'branch',
+        label: 'Branch',
+        placeholder: 'main',
+        value: ctx.githubBranch || 'main',
+      },
+      {
+        name: 'basePath',
+        label: 'Folder in repo',
+        placeholder: 'designs',
+        value: ctx.githubPath || 'designs',
+        hint: 'Files land at <folder>/<slug>.html — existing files are updated in place.',
+      },
+    ],
+    extraButton: (ctx.github || ctx.githubToken) ? {
       label: 'Sign out',
-      onClick: ({ close }) => { delete ctx.github; saveCtx(); close(null); },
+      onClick: ({ close }) => {
+        delete ctx.github;
+        delete ctx.githubToken;
+        delete ctx.githubBranch;
+        delete ctx.githubPath;
+        saveCtx();
+        close(null);
+      },
     } : null,
   });
   if (values === null) return;
-  if (values.repo) ctx.github = values.repo.replace(/^https?:\/\//, ''); else delete ctx.github;
+  if (values.repo) {
+    ctx.github = values.repo
+      .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
+      .replace(/\.git\/?$/, '')
+      .replace(/^\/+|\/+$/g, '');
+  } else {
+    delete ctx.github;
+  }
+  if (values.token) ctx.githubToken = values.token; else delete ctx.githubToken;
+  if (values.branch) ctx.githubBranch = values.branch; else delete ctx.githubBranch;
+  if (values.basePath) ctx.githubPath = values.basePath; else delete ctx.githubPath;
   saveCtx();
+}
+
+async function pushToGitHub(id, btn) {
+  if (!ctx.github || !ctx.githubToken) {
+    openGithubModal();
+    return;
+  }
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.classList.remove('saved', 'failed');
+  setBtnLabel(btn, 'Pushing…');
+  try {
+    const res = await fetch('/api/github/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: [id],
+        repo: ctx.github,
+        token: ctx.githubToken,
+        branch: ctx.githubBranch || 'main',
+        basePath: ctx.githubPath || 'designs',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'push failed');
+    if (data.errors?.length) throw new Error(data.errors[0].error || 'push failed');
+    btn.classList.add('saved');
+    setBtnLabel(btn, 'Pushed');
+    const url = data.pushed?.[0]?.htmlUrl;
+    if (url) {
+      const tip = makeEl('div', 'msg ai');
+      tip.appendChild(makeEl('div', 'who', 'github'));
+      const body = makeEl('div', 'body');
+      body.style.fontSize = '12.5px';
+      body.style.background = 'rgba(61, 220, 151, 0.08)';
+      body.style.borderColor = 'rgba(61, 220, 151, 0.32)';
+      body.style.color = '#0a4a30';
+      body.innerHTML = `Pushed <strong>${escapeHtml(id)}.html</strong> → <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">view on GitHub</a>`;
+      tip.appendChild(body);
+      threadEl.appendChild(tip);
+      threadEl.scrollTop = threadEl.scrollHeight;
+    }
+  } catch (err) {
+    btn.classList.add('failed');
+    setBtnLabel(btn, 'Failed');
+    appendError(`GitHub push failed: ${err?.message || err}`);
+  } finally {
+    setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.classList.remove('saved', 'failed');
+      btn.disabled = false;
+    }, 1800);
+  }
 }
 
 async function openLocalCodeModal() {
@@ -1461,6 +1567,80 @@ function escapeHtml(s) {
   })[c]);
 }
 
+/* ---------- 5-hour Claude usage indicator ---------- */
+let lastUsage = null;
+
+function fmtResetTime(ms) {
+  if (ms == null) return '';
+  if (ms <= 0) return 'window resets now';
+  const totalMin = Math.ceil(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h && m) return `${h}h ${m}m until window rolls`;
+  if (h)      return `${h}h until window rolls`;
+  return `${m}m until window rolls`;
+}
+
+function renderUsage() {
+  if (!lastUsage) {
+    usagePill.hidden = true;
+    emptyUsage.hidden = true;
+    return;
+  }
+  const { count, totalCost, nextResetMs } = lastUsage;
+  if (count === 0) {
+    usagePill.hidden = true;
+    emptyUsage.hidden = true;
+    return;
+  }
+  usagePill.hidden = false;
+  // Drop the old warn/alert thresholds — they were arbitrary guesses,
+  // not aligned with anything the user can act on.
+  usagePill.classList.remove('warn', 'alert');
+  usageText.textContent =
+    `rockdesign · ${count} ${count === 1 ? 'design' : 'designs'} · $${Number(totalCost).toFixed(2)} (5h)`;
+  usagePill.title =
+    `What rockdesign has spent through claude -p in the last 5h: ` +
+    `${count} generation${count === 1 ? '' : 's'}, $${Number(totalCost).toFixed(3)} observed cost.\n\n` +
+    `This is NOT your Claude Pro/Max session quota. ` +
+    `For your real 5-hour usage and reset time, open the Claude Code Settings UI.`;
+
+  // Empty-state version (under "No design open")
+  emptyUsage.hidden = false;
+  emptyUsageRow.innerHTML = '';
+  const seg = (label, value) => {
+    const s = makeEl('span');
+    s.appendChild(makeEl('span', null, label));
+    s.appendChild(document.createTextNode(' '));
+    s.appendChild(makeEl('strong', null, value));
+    return s;
+  };
+  emptyUsageRow.appendChild(seg('rockdesign 5h:', `${count} ${count === 1 ? 'design' : 'designs'}`));
+  const sep1 = makeEl('span', 'sep'); emptyUsageRow.appendChild(sep1);
+  emptyUsageRow.appendChild(seg('observed cost:', `$${Number(totalCost).toFixed(2)}`));
+  if (nextResetMs != null) {
+    const sep2 = makeEl('span', 'sep'); emptyUsageRow.appendChild(sep2);
+    emptyUsageRow.appendChild(seg('window rolls in:', fmtResetTime(nextResetMs).replace(' until window rolls', '')));
+  }
+}
+
+async function fetchUsage() {
+  try {
+    const res = await fetch('/api/usage?hours=5');
+    if (!res.ok) return;
+    lastUsage = await res.json();
+    renderUsage();
+  } catch { /* keep last value */ }
+}
+
+// Re-render every minute so the "Xh Ym until window rolls" countdown stays
+// fresh without re-fetching from the server.
+setInterval(() => {
+  if (!lastUsage || lastUsage.nextResetMs == null) return;
+  lastUsage.nextResetMs = Math.max(0, lastUsage.nextResetMs - 60_000);
+  renderUsage();
+}, 60_000);
+
 /* ---------- First-run ---------- */
 autoSize(promptEl);
 renderContextBar();
@@ -1469,4 +1649,5 @@ loadAll().then(() => {
   if (!localStorage.getItem(ONB_KEY)) {
     setTimeout(openOnboarding, 300);
   }
+  fetchUsage();
 });

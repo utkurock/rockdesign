@@ -24,3 +24,5 @@ yarn-error.log*
 dist/
 build/
 .cache/
+db.json
+db.json

@@ -143,6 +143,12 @@
       <header class="canvas-head">
         <div class="tab-bar" id="tabBar" aria-label="Open designs"></div>
         <div class="canvas-tools">
+          <div class="usage-pill" id="usagePill" title="Your last-5h Claude usage through rockdesign" hidden>
+            <span class="usage-icon" aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+            <span class="usage-text" id="usageText">5h · —</span>
+          </div>
           <button class="ghost-btn" id="closeAllBtn" title="Close all open designs">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 6l12 12M18 6L6 18"/>
@@ -162,6 +168,10 @@
         <div class="board-empty" id="boardEmpty">
           <h3>No design open</h3>
           <p>Generate something from the left, or click any design in the chat to open it as a page here.</p>
+          <div class="empty-usage" id="emptyUsage" hidden>
+            <span class="empty-usage-row" id="emptyUsageRow"></span>
+            <span class="empty-usage-note">Local observation only — not your Claude plan quota. Open Claude Code Settings for that.</span>
+          </div>
         </div>
       </section>
     </main>
@@ -225,8 +235,8 @@ claude</code></pre><button class="copy" type="button">Copy</button></div>
             <div class="step-body">
               <div class="step-title">Clone the repo</div>
               <p class="step-desc">Or fork it first and replace the URL.</p>
-              <div class="codeblock" data-code="git clone https://github.com/utkurock/rockdesign.git
-cd rockdesign"><pre><code>git clone https://github.com/utkurock/rockdesign.git
+              <div class="codeblock" data-code="git clone https://github.com/your-user/rockdesign.git
+cd rockdesign"><pre><code>git clone https://github.com/your-user/rockdesign.git
 cd rockdesign</code></pre><button class="copy" type="button">Copy</button></div>
             </div>
           </li>
