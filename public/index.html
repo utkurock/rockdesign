@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>rockdesign</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- LEFT: chat -->
+    <aside class="chat">
+      <header class="chat-head">
+        <div class="brand">
+          <span class="brand-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <circle cx="7.8" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
+              <circle cx="12"  cy="7.5"  r="1.2" fill="currentColor" stroke="none"/>
+              <circle cx="16.2" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
+              <circle cx="14.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+            </svg>
+          </span>
+          <span>rockdesign</span>
+        </div>
+        <button class="icon-btn" id="newChat" title="New chat (history kept)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="thread" id="thread"></div>
+
+      <div class="composer-wrap">
+        <div class="context-bar" id="contextBar" hidden></div>
+        <div class="attach-chips" id="attachChips" hidden></div>
+
+        <form class="composer" id="composer">
+          <button type="button" class="icon-btn ghost" id="attachBtn" aria-expanded="false" aria-haspopup="menu" title="Add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+          <button type="button" class="icon-btn ghost" tabindex="-1" title="Settings (soon)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+            </svg>
+          </button>
+          <textarea id="prompt" rows="1" placeholder="What do you want to create?"></textarea>
+          <button type="submit" class="send" id="generate" title="Generate (Enter)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5M6 11l6-6 6 6"/>
+            </svg>
+          </button>
+        </form>
+
+        <div class="attach-popover" id="attachPop" role="menu" hidden>
+          <div class="pop-section">
+            <div class="pop-title">Attach files</div>
+            <button class="pop-item" data-action="attach-file" type="button">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11l-9.5 9.5a5 5 0 1 1-7-7L14 4a3.5 3.5 0 1 1 5 5L9.5 18.5a2 2 0 1 1-2.8-2.8L15 7.5"/></svg>
+              </span>
+              <span class="pop-label">Attach file</span>
+            </button>
+            <button class="pop-item" data-action="ref-project" type="button" title="Reference another rockdesign project by name">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              </span>
+              <span class="pop-label">Reference another project</span>
+            </button>
+          </div>
+
+          <div class="pop-section">
+            <div class="pop-title">Attach code</div>
+            <button class="pop-item" data-action="github" type="button" title="Connect a GitHub repo URL">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v5.5"/></svg>
+              </span>
+              <span class="pop-label">GitHub connected</span>
+              <span class="pop-aside">
+                <span class="micro" title="Settings">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.5a7 7 0 0 0-2 1.2l-2.4-.9-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.4-.9a7 7 0 0 0 2 1.2L10 21h4l.5-2.5a7 7 0 0 0 2-1.2l2.4.9 2-3.5-2-1.5c0-.4.1-.8.1-1.2z"/></svg>
+                </span>
+                <span class="micro" title="Sign out">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 17l5-5-5-5M21 12H9M13 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/></svg>
+                </span>
+              </span>
+            </button>
+            <button class="pop-item" data-action="local-code" type="button" title="Point Claude at a local directory">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+              </span>
+              <span class="pop-label">Link local code…</span>
+            </button>
+          </div>
+
+          <div class="pop-section">
+            <div class="pop-title">Attach designs</div>
+            <button class="pop-item" data-action="upload-fig" type="button">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v14M6 9l6-6 6 6M5 21h14"/></svg>
+              </span>
+              <span class="pop-label">Upload .fig file</span>
+              <span class="pop-pill">How to download</span>
+            </button>
+            <button class="pop-item" data-action="grab-web" type="button" title="Snapshot a public web page">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+              </span>
+              <span class="pop-label">Grab web element</span>
+            </button>
+          </div>
+
+          <div class="pop-section">
+            <button class="pop-item" data-action="skills" type="button" title="Edit the design system Claude follows">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+              </span>
+              <span class="pop-label">Skills and design systems</span>
+            </button>
+            <button class="pop-item" data-action="connectors" type="button" title="View all connector status">
+              <span class="pop-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              </span>
+              <span class="pop-label">Manage connectors</span>
+            </button>
+          </div>
+        </div>
+
+        <input type="file" id="fileInput" hidden multiple
+          accept="image/*,application/pdf,.svg,.txt,.md,.json,.html,.css">
+        <input type="file" id="figInput" hidden accept=".fig">
+      </div>
+
+      <p class="footnote">From Jun 15 2026, <code>claude -p</code> draws from a separate monthly Agent SDK credit.</p>
+    </aside>
+
+    <!-- RIGHT: canvas (board) -->
+    <main class="canvas">
+      <header class="canvas-head">
+        <div class="tab-bar" id="tabBar" aria-label="Open designs"></div>
+        <div class="canvas-tools">
+          <button class="ghost-btn" id="closeAllBtn" title="Close all open designs">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+            Close all
+          </button>
+          <button class="ghost-btn" id="setupBtn" title="Run rockdesign on your own machine">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 17l6-6-6-6M12 19h8"/>
+            </svg>
+            Setup
+          </button>
+        </div>
+      </header>
+
+      <section class="board" id="board">
+        <div class="board-empty" id="boardEmpty">
+          <h3>No design open</h3>
+          <p>Generate something from the left, or click any design in the chat to open it as a page here.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Fullscreen lightbox -->
+  <div class="lightbox" id="lightbox" hidden>
+    <header class="lightbox-head">
+      <div class="lightbox-title" id="lightboxTitle"></div>
+      <div class="lightbox-tools">
+        <button class="ghost-btn" id="lbCopy" title="Copy HTML to clipboard">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8h2v11a2 2 0 0 0 2 2h11v-2"/></svg>
+          Copy code
+        </button>
+        <button class="ghost-btn" id="lbPng" title="Download as PNG">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg>
+          PNG
+        </button>
+        <button class="ghost-btn" id="lbOpenTab" title="Open in new browser tab">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        </button>
+        <button class="ghost-btn" id="lbReload" title="Reload">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
+        <button class="ghost-btn lb-close" id="lbClose" title="Close (Esc)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </header>
+    <div class="lightbox-stage" id="lightboxStage"></div>
+  </div>
+
+  <!-- Setup modal -->
+  <div class="modal-backdrop" id="setupBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+      <header class="modal-head">
+        <div>
+          <h2 id="setupTitle">Set up rockdesign</h2>
+          <p class="modal-lead">Run this app locally. Five steps.</p>
+        </div>
+        <button class="icon-btn" id="setupClose" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <ol class="steps">
+          <li class="step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+              <div class="step-title">Install Claude Code</div>
+              <p class="step-desc">rockdesign drives your local <code>claude</code> CLI — no extra API key needed.</p>
+              <div class="codeblock" data-code="curl -fsSL https://claude.ai/install.sh | sh
+claude login"><pre><code>curl -fsSL https://claude.ai/install.sh | sh
+claude login</code></pre><button class="copy" type="button">Copy</button></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+              <div class="step-title">Clone the repo</div>
+              <p class="step-desc">Replace the URL with your fork.</p>
+              <div class="codeblock" data-code="git clone https://github.com/your-user/rockdesign.git
+cd rockdesign"><pre><code>git clone https://github.com/your-user/rockdesign.git
+cd rockdesign</code></pre><button class="copy" type="button">Copy</button></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+              <div class="step-title">Install dependencies</div>
+              <p class="step-desc">Only <code>express</code>. Requires Node 18+.</p>
+              <div class="codeblock" data-code="npm install"><pre><code>npm install</code></pre><button class="copy" type="button">Copy</button></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-num">4</span>
+            <div class="step-body">
+              <div class="step-title">Start the server</div>
+              <p class="step-desc">Default port is <code>4173</code>. Set <code>PORT</code> to override.</p>
+              <div class="codeblock" data-code="npm start"><pre><code>npm start</code></pre><button class="copy" type="button">Copy</button></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-num">5</span>
+            <div class="step-body">
+              <div class="step-title">Open in browser</div>
+              <p class="step-desc">Type a prompt, hit Generate, watch Claude write a single-file HTML design into <code>generations/</code>.</p>
+              <div class="codeblock" data-code="open http://localhost:4173"><pre><code>open http://localhost:4173</code></pre><button class="copy" type="button">Copy</button></div>
+            </div>
+          </li>
+        </ol>
+
+        <div class="modal-tip">
+          <strong>Tip ·</strong> Drop attachments (images, <code>.fig</code> files) into the prompt — Claude will read them with the <code>Read</code> tool while generating.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding modal -->
+  <div class="modal-backdrop" id="onbBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="onbTitle">
+      <header class="modal-head">
+        <div>
+          <h2 id="onbTitle">Let's set the scene</h2>
+          <p class="modal-lead">A couple of choices that shape every generation. You can change them anytime.</p>
+        </div>
+        <button class="icon-btn" id="onbClose" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="modal-body onb-body">
+        <div class="onb-question">
+          <h3>What are you designing?</h3>
+          <div class="option-grid cols-2" data-q="projectType">
+            <button class="opt-card" data-value="web" type="button">
+              <span class="opt-emoji"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 20h8"/></svg></span>
+              <span class="opt-title">Web app</span>
+              <span class="opt-sub">Browser product, dashboard, SaaS</span>
+            </button>
+            <button class="opt-card" data-value="mobile" type="button">
+              <span class="opt-emoji"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></span>
+              <span class="opt-title">Mobile app</span>
+              <span class="opt-sub">iOS/Android product screens</span>
+            </button>
+            <button class="opt-card" data-value="marketing" type="button">
+              <span class="opt-emoji"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M3 12h18M3 19h12"/></svg></span>
+              <span class="opt-title">Marketing site</span>
+              <span class="opt-sub">Landing pages, launches</span>
+            </button>
+            <button class="opt-card" data-value="dashboard" type="button">
+              <span class="opt-emoji"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
+              <span class="opt-title">Dashboard</span>
+              <span class="opt-sub">Data-dense internal tools</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="onb-question">
+          <h3>Target platform</h3>
+          <p>Drives the design width and patterns Claude will use.</p>
+          <div class="option-grid cols-4" data-q="target">
+            <button class="opt-card" data-value="mobile" type="button">
+              <span class="opt-title">Mobile</span>
+              <span class="opt-sub">390–430px</span>
+            </button>
+            <button class="opt-card" data-value="tablet" type="button">
+              <span class="opt-title">Tablet</span>
+              <span class="opt-sub">768–1024px</span>
+            </button>
+            <button class="opt-card" data-value="desktop" type="button">
+              <span class="opt-title">Desktop</span>
+              <span class="opt-sub">1280px+</span>
+            </button>
+            <button class="opt-card" data-value="responsive" type="button">
+              <span class="opt-title">Responsive</span>
+              <span class="opt-sub">All three</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="onb-question">
+          <h3>Style direction</h3>
+          <p>Optional. Skip to use the default liquid glass.</p>
+          <div class="option-grid cols-2" data-q="style">
+            <button class="opt-card" data-value="liquid-glass" type="button">
+              <span class="opt-title">Liquid glass</span>
+              <span class="opt-sub">Mint sheen, blur, glow on hero</span>
+            </button>
+            <button class="opt-card" data-value="minimal" type="button">
+              <span class="opt-title">Minimal</span>
+              <span class="opt-sub">Hairlines, whitespace, no effects</span>
+            </button>
+            <button class="opt-card" data-value="brutalist" type="button">
+              <span class="opt-title">Brutalist</span>
+              <span class="opt-sub">High contrast, hard shadows</span>
+            </button>
+            <button class="opt-card" data-value="editorial" type="button">
+              <span class="opt-title">Editorial</span>
+              <span class="opt-sub">Wider measure, serif, asymmetric</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-head" style="border-top: 1px solid var(--hair); border-bottom: none; justify-content: flex-end;">
+        <div class="modal-actions">
+          <button class="btn-secondary" id="onbSkip" type="button">Skip</button>
+          <button class="btn-primary" id="onbSave" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Design system modal -->
+  <div class="modal-backdrop" id="dsBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dsTitle" style="max-width: 780px;">
+      <header class="modal-head">
+        <div>
+          <h2 id="dsTitle">Skills & design systems</h2>
+          <p class="modal-lead">Claude reads this on every generation. Edit it to bend the style.</p>
+        </div>
+        <button class="icon-btn" id="dsClose" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="ds-tabs" id="dsTabs">
+          <button class="ds-tab active" data-preset="current" type="button">Current</button>
+          <button class="ds-tab" data-preset="rockdesign" type="button">rockdesign default</button>
+          <button class="ds-tab" data-preset="minimal" type="button">Minimal</button>
+          <button class="ds-tab" data-preset="brutalist" type="button">Brutalist</button>
+          <button class="ds-tab" data-preset="apple" type="button">Apple HIG</button>
+          <button class="ds-tab" data-preset="material" type="button">Material 3</button>
+        </div>
+        <textarea class="ds-editor" id="dsEditor" spellcheck="false" placeholder="Loading…"></textarea>
+        <div class="modal-actions" style="margin-top: 12px;">
+          <div class="ds-save-status" id="dsStatus"></div>
+          <button class="btn-secondary" id="dsRevert" type="button">Revert</button>
+          <button class="btn-primary" id="dsSave" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connectors modal -->
+  <div class="modal-backdrop" id="connBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="connTitle">
+      <header class="modal-head">
+        <div>
+          <h2 id="connTitle">Manage connectors</h2>
+          <p class="modal-lead">Reference systems Claude can pull context from.</p>
+        </div>
+        <button class="icon-btn" id="connClose" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="connectors-list" id="connectorsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic input modal container (built dynamically) -->
+  <div class="modal-backdrop" id="inputBackdrop" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
