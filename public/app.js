@@ -104,6 +104,7 @@ function renderThread() {
     f.src = `/preview/${encodeURIComponent(it.id)}`;
     f.loading = 'lazy';
     f.title = it.prompt;
+    f.setAttribute('sandbox', 'allow-scripts');
     thumb.appendChild(f);
 
     const meta = makeEl('div', 'meta');
@@ -193,6 +194,7 @@ function buildCard(item) {
   iframe.src = `/preview/${encodeURIComponent(item.id)}`;
   iframe.loading = 'lazy';
   iframe.setAttribute('scrolling', 'no');
+  iframe.setAttribute('sandbox', 'allow-scripts');
   frame.appendChild(iframe);
   frame.addEventListener('click', () => openLightbox(item.id));
   card.appendChild(frame);
@@ -288,6 +290,7 @@ function openLightbox(id) {
   const f = makeEl('iframe');
   f.src = `/preview/${encodeURIComponent(id)}`;
   f.title = item.prompt;
+  f.setAttribute('sandbox', 'allow-scripts');
   lightboxStage.appendChild(f);
   lightbox.hidden = false;
   document.body.style.overflow = 'hidden';
