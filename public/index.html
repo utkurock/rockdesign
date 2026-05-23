@@ -213,10 +213,10 @@
             <span class="step-num">1</span>
             <div class="step-body">
               <div class="step-title">Install Claude Code</div>
-              <p class="step-desc">rockdesign drives your local <code>claude</code> CLI — no extra API key needed.</p>
-              <div class="codeblock" data-code="curl -fsSL https://claude.ai/install.sh | sh
-claude login"><pre><code>curl -fsSL https://claude.ai/install.sh | sh
-claude login</code></pre><button class="copy" type="button">Copy</button></div>
+              <p class="step-desc">rockdesign drives your local <code>claude</code> CLI — no extra API key needed. The npm install works on macOS, Windows, and Linux.</p>
+              <div class="codeblock" data-code="npm install -g @anthropic-ai/claude-code
+claude"><pre><code>npm install -g @anthropic-ai/claude-code
+claude</code></pre><button class="copy" type="button">Copy</button></div>
             </div>
           </li>
 
@@ -244,7 +244,7 @@ cd rockdesign</code></pre><button class="copy" type="button">Copy</button></div>
             <span class="step-num">4</span>
             <div class="step-body">
               <div class="step-title">Start the server</div>
-              <p class="step-desc">Default port is <code>4173</code>. Set <code>PORT</code> to override.</p>
+              <p class="step-desc">Default port is <code>4173</code>. Override with <code>PORT</code> env var (<code>PORT=5050 npm start</code> on macOS/Linux, <code>$env:PORT=5050; npm start</code> in PowerShell).</p>
               <div class="codeblock" data-code="npm start"><pre><code>npm start</code></pre><button class="copy" type="button">Copy</button></div>
             </div>
           </li>
@@ -253,14 +253,14 @@ cd rockdesign</code></pre><button class="copy" type="button">Copy</button></div>
             <span class="step-num">5</span>
             <div class="step-body">
               <div class="step-title">Open in browser</div>
-              <p class="step-desc">Type a prompt, hit Generate, watch Claude write a single-file HTML design into <code>generations/</code>.</p>
-              <div class="codeblock" data-code="open http://localhost:4173"><pre><code>open http://localhost:4173</code></pre><button class="copy" type="button">Copy</button></div>
+              <p class="step-desc">Visit the URL in any modern browser. PNG export uses Chrome / Chromium / Edge / Brave from the standard install location — set <code>CHROME_PATH</code> env to override.</p>
+              <div class="codeblock" data-code="http://localhost:4173"><pre><code>http://localhost:4173</code></pre><button class="copy" type="button">Copy</button></div>
             </div>
           </li>
         </ol>
 
         <div class="modal-tip">
-          <strong>Tip ·</strong> Drop attachments (images, <code>.fig</code> files) into the prompt — Claude will read them with the <code>Read</code> tool while generating.
+          <strong>Compatibility ·</strong> Tested on macOS, Windows 10/11, and Ubuntu. Needs Node ≥ 18 and Git. PNG export needs a Chromium-based browser; everything else is built-in. Drop images or <code>.fig</code> files into the chat and Claude will <code>Read</code> them during generation.
         </div>
       </div>
     </div>

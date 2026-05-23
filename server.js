@@ -49,6 +49,41 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '40mb' }));
 
+// --- request logger ---
+// Each request prints a line to the terminal so you can watch the whole
+// system from the same shell you ran `npm start` in.
+const COLOR = process.stdout.isTTY ? {
+  dim: (s) => `\x1b[2m${s}\x1b[0m`,
+  red: (s) => `\x1b[31m${s}\x1b[0m`,
+  green: (s) => `\x1b[32m${s}\x1b[0m`,
+  yellow: (s) => `\x1b[33m${s}\x1b[0m`,
+  cyan: (s) => `\x1b[36m${s}\x1b[0m`,
+  bold: (s) => `\x1b[1m${s}\x1b[0m`,
+} : { dim: (s) => s, red: (s) => s, green: (s) => s, yellow: (s) => s, cyan: (s) => s, bold: (s) => s };
+
+function now() {
+  return new Date().toTimeString().slice(0, 8);
+}
+function logLine(...parts) {
+  console.log(COLOR.dim(now()), ...parts);
+}
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const sc = res.statusCode;
+    const status = sc >= 500 ? COLOR.red(String(sc))
+                : sc >= 400 ? COLOR.yellow(String(sc))
+                : COLOR.green(String(sc));
+    // Skip static assets to keep the log readable
+    if (req.path.startsWith('/api/') || req.path.startsWith('/preview') || req.path.startsWith('/attachments')) {
+      logLine(status, req.method, req.path, COLOR.dim(`${ms}ms`));
+    }
+  });
+  next();
+});
+
 // Reject any cross-origin write to /api/* — only allow our own UI to call us.
 // This blocks DNS-rebinding + the rare browser-CSRF case (extensions, custom
 // schemes, http://127.0.0.1 vs http://localhost mismatch).
@@ -56,11 +91,18 @@ const ALLOWED_ORIGINS = new Set([
   `http://${HOST}:${PORT}`,
   `http://localhost:${PORT}`,
   `http://127.0.0.1:${PORT}`,
+  `http://[::1]:${PORT}`,
+]);
+const ALLOWED_HOSTS = new Set([
+  `${HOST}:${PORT}`,
+  `localhost:${PORT}`,
+  `127.0.0.1:${PORT}`,
+  `[::1]:${PORT}`,
 ]);
 app.use('/api', (req, res, next) => {
   // Host header must match our bind to defeat DNS rebinding
   const host = (req.headers.host || '').toLowerCase();
-  if (host !== `${HOST}:${PORT}` && host !== `localhost:${PORT}` && host !== `127.0.0.1:${PORT}`) {
+  if (!ALLOWED_HOSTS.has(host)) {
     return res.status(403).json({ error: 'host mismatch' });
   }
   // For state-changing methods, require a same-origin Origin header
@@ -120,6 +162,94 @@ function sanitizeFilename(name) {
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 180);
+}
+
+// "Mira — AI image studio!" -> "mira-ai-image-studio"
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')        // strip combining marks
+    .replace(/['"`]/g, '')                  // drop quotes
+    .replace(/[^a-z0-9]+/g, '-')            // anything else -> dash
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '');                    // re-trim trailing dash after slice
+}
+
+// Reserve a unique id (basename without .html) inside GEN_DIR. Appends -2, -3,
+// ... on collision. Falls back to "untitled-<6-char>" if slug is empty.
+async function reserveDesignId(rawPrompt) {
+  let base = slugify(rawPrompt) || ('untitled-' + Math.random().toString(36).slice(2, 8));
+  let candidate = base;
+  let i = 2;
+  // Don't compete with reserved names
+  const RESERVED = new Set(['claude', 'index', '_attachments']);
+  while (true) {
+    if (!RESERVED.has(candidate)) {
+      try {
+        await fs.access(path.join(GEN_DIR, candidate + '.html'));
+      } catch { return candidate; }
+    }
+    candidate = `${base}-${i++}`;
+    if (i > 9999) {
+      // Pathological — fall back to random
+      return base + '-' + Math.random().toString(36).slice(2, 8);
+    }
+  }
+}
+
+// Scan generations/ for *.html files that aren't in db.json and recover them.
+// Title is parsed from <title>...</title>, falling back to the filename.
+async function reconcileOrphans() {
+  let entries;
+  try {
+    entries = await fs.readdir(GEN_DIR, { withFileTypes: true });
+  } catch { return { added: 0 }; }
+
+  const htmls = entries
+    .filter((e) => e.isFile() && /\.html$/i.test(e.name))
+    .filter((e) => e.name !== 'index.html')
+    .map((e) => e.name);
+  if (!htmls.length) return { added: 0 };
+
+  const items = await readDb();
+  const have = new Set(items.map((it) => it.file || (it.id + '.html')));
+  const orphans = htmls.filter((f) => !have.has(f));
+  if (!orphans.length) return { added: 0 };
+
+  for (const filename of orphans) {
+    const full = path.join(GEN_DIR, filename);
+    let title = '', mtime;
+    try {
+      const stat = await fs.stat(full);
+      mtime = stat.mtime;
+      // Read just enough to grab the title (first 8KB is plenty)
+      const fh = await fs.open(full, 'r');
+      try {
+        const buf = Buffer.alloc(8192);
+        const { bytesRead } = await fh.read(buf, 0, 8192, 0);
+        const head = buf.slice(0, bytesRead).toString('utf8');
+        const m = head.match(/<title>([\s\S]*?)<\/title>/i);
+        if (m) title = m[1].trim().replace(/\s+/g, ' ');
+      } finally { await fh.close(); }
+    } catch { /* skip */ continue; }
+
+    const id = filename.replace(/\.html$/i, '');
+    items.push({
+      id,
+      prompt: title || `(recovered) ${id}`,
+      file: filename,
+      createdAt: (mtime || new Date()).toISOString(),
+      cost: null,
+      sessionId: null,
+      attachments: [],
+      context: null,
+      recovered: true,
+    });
+  }
+  await writeDb(items);
+  return { added: orphans.length };
 }
 
 // --- routes ---
@@ -560,7 +690,7 @@ app.post('/api/generate', async (req, res) => {
     contextLines.push(`- Local code base: ${safeLocalCode} (you may Read files ONLY inside this exact directory)`);
   }
 
-  const id = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const id = await reserveDesignId(prompt);
   const targetFile = `${id}.html`;
 
   const attachLines = validAttachments.map((a) => {
@@ -594,6 +724,13 @@ app.post('/api/generate', async (req, res) => {
     `Requested design: ${prompt}`,
   ].filter((line) => line !== null).join('\n');
 
+  const t0 = Date.now();
+  const preview = prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt;
+  logLine(COLOR.cyan('▶ generate'), COLOR.bold(id),
+    `attachments=${validAttachments.length}`,
+    contextLines.length ? `ctx=${contextLines.length}` : '',
+    `\n          ${COLOR.dim('prompt:')} ${preview}`);
+
   try {
     const result = await runClaude(instruction);
 
@@ -601,6 +738,9 @@ app.post('/api/generate', async (req, res) => {
     try {
       await fs.access(filePath);
     } catch {
+      const ms = Date.now() - t0;
+      logLine(COLOR.red('✗ generate'), id, COLOR.dim(`${(ms / 1000).toFixed(1)}s`),
+        'claude did not write the file');
       return res.status(500).json({
         error: 'Claude did not create the HTML file.',
         detail: result.stderr || result.result || '',
@@ -626,8 +766,16 @@ app.post('/api/generate', async (req, res) => {
     items.push(record);
     await writeDb(items);
 
+    const ms = Date.now() - t0;
+    logLine(COLOR.green('✓ generate'), id, COLOR.dim(`${(ms / 1000).toFixed(1)}s`),
+      record.cost != null ? COLOR.dim(`$${record.cost.toFixed(3)}`) : '',
+      COLOR.dim(`→ generations/${targetFile}`));
     res.json(record);
   } catch (err) {
+    const ms = Date.now() - t0;
+    logLine(COLOR.red('✗ generate'), id, COLOR.dim(`${(ms / 1000).toFixed(1)}s`),
+      err?.message || 'unknown error');
+    if (err?.detail) console.error(COLOR.dim('  detail:'), err.detail.split('\n').slice(-5).join('\n  '));
     res.status(500).json({
       error: err?.message || 'Generation error',
       detail: err?.detail || null,
@@ -636,7 +784,33 @@ app.post('/api/generate', async (req, res) => {
 });
 
 // --- claude bridge ---
-function runClaude(instruction) {
+// Cross-platform claude binary lookup. On Windows, npm-installed CLIs land
+// as .cmd / .exe shims that Node's spawn won't auto-resolve without help.
+let cachedClaude = null;
+async function findClaude() {
+  if (process.env.CLAUDE_PATH) {
+    try { await fs.access(process.env.CLAUDE_PATH); return process.env.CLAUDE_PATH; }
+    catch { /* fall through */ }
+  }
+  if (cachedClaude) {
+    try { await fs.access(cachedClaude); return cachedClaude; }
+    catch { cachedClaude = null; }
+  }
+  if (!IS_WIN) return 'claude'; // POSIX PATH lookup works for plain name
+
+  const exts = ['.cmd', '.exe', '.bat'];
+  const dirs = (process.env.PATH || '').split(';').filter(Boolean);
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      const full = path.join(dir, 'claude' + ext);
+      try { await fs.access(full); cachedClaude = full; return full; } catch {}
+    }
+  }
+  return 'claude'; // last-ditch; will likely fail but with a clear ENOENT
+}
+
+async function runClaude(instruction) {
+  const bin = await findClaude();
   return new Promise((resolve, reject) => {
     const args = [
       '-p', instruction,
@@ -644,10 +818,14 @@ function runClaude(instruction) {
       '--allowedTools', 'Write,Read',
     ];
 
-    const child = spawn('claude', args, {
+    const child = spawn(bin, args, {
       cwd: GEN_DIR,
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      // .cmd / .bat shims on Windows need the shell to dispatch — Node will
+      // still treat args as a single argv array but invoke cmd.exe to launch.
+      // Safe here because `bin` is a path we resolved ourselves (no user input).
+      shell: IS_WIN && /\.(cmd|bat)$/i.test(bin),
     });
 
     let stdout = '';
@@ -661,7 +839,14 @@ function runClaude(instruction) {
     }, CLAUDE_TIMEOUT_MS);
 
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    // Stream claude's stderr live so the user can watch progress in the same
+    // terminal where they ran `npm start`. Also keep a copy for the error
+    // message if the call fails.
+    child.stderr.on('data', (chunk) => {
+      const s = chunk.toString();
+      stderr += s;
+      process.stderr.write(s.replace(/^/gm, '  \x1b[2m│\x1b[0m '));
+    });
 
     child.on('error', (err) => {
       clearTimeout(timer);
@@ -703,6 +888,41 @@ function runClaude(instruction) {
 
 // --- start ---
 await ensureDirs();
-app.listen(PORT, HOST, () => {
-  console.log(`rockdesign ready → http://${HOST}:${PORT}  (bound to ${HOST} only)`);
-});
+
+// Recover any orphan HTML files written by Claude that the server didn't
+// get to persist into db.json (e.g., killed mid-generation, crash, restart).
+try {
+  const r = await reconcileOrphans();
+  if (r.added) logLine(COLOR.cyan('recovered'), `${r.added} orphan design(s) into db.json`);
+} catch (e) {
+  logLine(COLOR.yellow('warn'), 'reconcileOrphans failed:', e?.message || e);
+}
+
+// Bind to both IPv4 and IPv6 loopback so `localhost` works regardless of how
+// the browser resolves it (Chrome/Safari often prefer ::1 on macOS).
+// Still loopback-only — LAN cannot reach us.
+const servers = [];
+function listenOn(host) {
+  return new Promise((resolve) => {
+    const srv = app.listen(PORT, host, () => {
+      logLine(COLOR.green('listening'), `http://${host.includes(':') ? `[${host}]` : host}:${PORT}`);
+      resolve();
+    });
+    srv.on('error', (err) => {
+      logLine(COLOR.yellow('skip'), `${host}:${PORT}`, COLOR.dim(err.code || err.message));
+      resolve();
+    });
+    servers.push(srv);
+  });
+}
+
+if (HOST === '127.0.0.1') {
+  await listenOn('127.0.0.1');
+  await listenOn('::1');
+} else {
+  await listenOn(HOST);
+}
+
+console.log('\n  ' + COLOR.bold('rockdesign ready'));
+console.log('  ' + COLOR.cyan(`→ http://localhost:${PORT}`));
+console.log('  ' + COLOR.dim('Watch this terminal for request logs and Claude output.\n'));
