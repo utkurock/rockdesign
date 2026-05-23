@@ -6,7 +6,6 @@ const sendBtn = $('#generate');
 const threadEl = $('#thread');
 const boardEl = $('#board');
 const tabBar = $('#tabBar');
-const closeAllBtn = $('#closeAllBtn');
 const lightbox = $('#lightbox');
 const lightboxTitle = $('#lightboxTitle');
 const lightboxStage = $('#lightboxStage');
@@ -15,7 +14,7 @@ const lbPng = $('#lbPng');
 const lbOpenTab = $('#lbOpenTab');
 const lbReload = $('#lbReload');
 const lbClose = $('#lbClose');
-const newChatBtn = $('#newChat');
+const headerSettingsBtn = $('#headerSettings');
 const attachBtn = $('#attachBtn');
 const attachPop = $('#attachPop');
 const attachChips = $('#attachChips');
@@ -83,45 +82,91 @@ function makeEl(tag, cls, text) {
   return el;
 }
 
+// Group designs that came from the same multi-page generation.
+// Returns an array of groups (each is { groupId|null, items: [design...] })
+// in chronological order.
+function groupChronologically(designs) {
+  const chrono = designs.slice().sort((a, b) =>
+    (a.createdAt || '').localeCompare(b.createdAt || '') ||
+    ((a.pageIndex ?? 0) - (b.pageIndex ?? 0)));
+  const groups = [];
+  const seenGroups = new Map(); // groupId -> group
+  for (const it of chrono) {
+    if (it.groupId) {
+      if (seenGroups.has(it.groupId)) {
+        seenGroups.get(it.groupId).items.push(it);
+      } else {
+        const g = { groupId: it.groupId, items: [it] };
+        seenGroups.set(it.groupId, g);
+        groups.push(g);
+      }
+    } else {
+      groups.push({ groupId: null, items: [it] });
+    }
+  }
+  return groups;
+}
+
 function renderThread() {
   threadEl.innerHTML = '';
-  const chrono = items
-    .slice()
-    .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  const groups = groupChronologically(items);
 
   let lastPrompt = null;
-  chrono.forEach((it) => {
-    if (it.prompt !== lastPrompt) {
+  groups.forEach((group) => {
+    const head = group.items[0];
+
+    // User bubble (once per distinct prompt)
+    if (head.prompt !== lastPrompt) {
       const u = makeEl('div', 'msg user');
       u.appendChild(makeEl('div', 'who', 'You'));
-      u.appendChild(makeEl('div', 'body', it.prompt));
-      const row = buildMiniAttachRow(it.attachments);
+      u.appendChild(makeEl('div', 'body', head.prompt));
+      const row = buildMiniAttachRow(head.attachments);
       if (row) u.appendChild(row);
       threadEl.appendChild(u);
-      lastPrompt = it.prompt;
+      lastPrompt = head.prompt;
     }
 
     const a = makeEl('div', 'msg ai');
     a.appendChild(makeEl('div', 'who', 'rockdesign'));
 
-    const card = makeEl('div', 'body' + (it.id === activeId ? ' active' : ''));
-    card.addEventListener('click', () => selectItem(it.id));
+    // ONE compact tile per result — single-page and multi-page render the
+    // same way. The tile shows the first page as a thumbnail with a page-count
+    // badge when there's more than one. Click to open the full detail in
+    // the right-side board.
+    const it = group.items[0];
+    const totalCost = group.items.reduce((s, x) => s + (Number(x.cost) || 0), 0);
+    const isOpenOnBoard = group.items.some((g) => openIds.includes(g.id));
 
-    const thumb = makeEl('div', 'thumb');
+    const tile = makeEl('div', 'result-tile' + (isOpenOnBoard ? ' open' : ''));
+    tile.addEventListener('click', () => openGroupOnBoard(group));
+
+    const thumbWrap = makeEl('div', 'tile-thumb');
     const f = makeEl('iframe');
     f.src = `/preview/${encodeURIComponent(it.id)}`;
     f.loading = 'lazy';
-    f.title = it.prompt;
+    f.title = head.prompt;
     f.setAttribute('sandbox', 'allow-scripts');
-    thumb.appendChild(f);
+    f.setAttribute('scrolling', 'no');
+    thumbWrap.appendChild(f);
 
-    const meta = makeEl('div', 'meta');
-    meta.appendChild(makeEl('span', null, fmtDate(it.createdAt)));
-    meta.appendChild(makeEl('span', null, it.cost ? `$${Number(it.cost).toFixed(3)}` : ''));
+    if (group.items.length > 1) {
+      const badge = makeEl('span', 'tile-pages-badge');
+      badge.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="14" height="14" rx="1.5"/><path d="M8 3h12v12"/></svg> ${group.items.length} pages`;
+      thumbWrap.appendChild(badge);
+    }
+    tile.appendChild(thumbWrap);
 
-    card.appendChild(thumb);
-    card.appendChild(meta);
-    a.appendChild(card);
+    const meta = makeEl('div', 'tile-meta');
+    const left = makeEl('div', 'tile-meta-left');
+    left.appendChild(makeEl('span', 'tile-time', fmtDate(head.createdAt)));
+    if (totalCost) left.appendChild(makeEl('span', 'tile-cost', `$${totalCost.toFixed(3)}`));
+    if (head.partial) left.appendChild(makeEl('span', 'tile-partial', 'partial'));
+    meta.appendChild(left);
+    meta.appendChild(makeEl('span', 'tile-open-hint',
+      isOpenOnBoard ? 'Open ↗' : 'Click to open →'));
+    tile.appendChild(meta);
+
+    a.appendChild(tile);
     threadEl.appendChild(a);
   });
 
@@ -176,15 +221,75 @@ function renderBoard() {
   boardEl.appendChild(row);
 }
 
+function getGroupSiblings(item) {
+  if (!item?.groupId) return null;
+  const sibs = items
+    .filter((x) => x.groupId === item.groupId)
+    .sort((a, b) => (a.pageIndex ?? 0) - (b.pageIndex ?? 0));
+  return sibs.length > 1 ? sibs : null;
+}
+
+// Click handler for the chat result tile. Opens the FIRST page of the
+// generation on the board (the current detail view), focused — user can then
+// flip pages with the prev/next arrows we already built.
+function openGroupOnBoard(group) {
+  const first = group.items[0];
+  if (!first) return;
+  // Open ALL pages in the group side by side (prototype-grid style)
+  group.items.forEach((it) => {
+    if (!openIds.includes(it.id)) openIds.push(it.id);
+  });
+  saveOpenIds();
+  activeId = first.id;
+  renderBoard();
+  renderTabs();
+  renderThread();
+  // Scroll to the first card so user sees the start of the group
+  requestAnimationFrame(() => {
+    const card = boardEl.querySelector(`.board-card[data-id="${CSS.escape(first.id)}"]`);
+    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  });
+}
+
+// Replace one open card with a sibling page (same slot in the openIds list).
+function swapCardPage(currentId, nextId) {
+  const i = openIds.indexOf(currentId);
+  if (i === -1) {
+    if (!openIds.includes(nextId)) openIds.push(nextId);
+  } else {
+    openIds[i] = nextId;
+  }
+  if (activeId === currentId) activeId = nextId;
+  saveOpenIds();
+  renderBoard();
+  renderTabs();
+  renderThread();
+}
+
 function buildCard(item) {
   const card = makeEl('div', 'board-card' + (item.id === activeId ? ' active' : ''));
   card.dataset.id = item.id;
 
+  const siblings = getGroupSiblings(item);
+
   // Head
   const head = makeEl('div', 'card-head');
+  const titleWrap = makeEl('div', 'card-title-wrap');
   const prompt = makeEl('div', 'card-prompt', item.prompt);
   prompt.title = item.prompt;
-  head.appendChild(prompt);
+  titleWrap.appendChild(prompt);
+  if (siblings) {
+    const sublabel = makeEl('div', 'card-sublabel');
+    const idx = siblings.findIndex((s) => s.id === item.id);
+    sublabel.textContent = `${item.pageLabel || `Page ${idx + 1}`} · ${idx + 1}/${siblings.length}`;
+    titleWrap.appendChild(sublabel);
+  }
+  head.appendChild(titleWrap);
+
+  // Page-nav arrows removed: all sibling pages are now opened side-by-side as
+  // separate cards, so prev/next would just swap one open card with another
+  // already-open one.
+
   const stamp = makeEl('div', 'card-stamp', fmtDate(item.createdAt));
   head.appendChild(stamp);
   const closeBtn = makeEl('button', 'card-close');
@@ -249,8 +354,17 @@ function selectItem(id) {
 }
 
 function ensureOnBoard(id) {
-  if (!openIds.includes(id)) {
-    openIds.push(id);
+  const item = items.find((i) => i.id === id);
+  const siblings = item ? getGroupSiblings(item) : null;
+  const targets = siblings ? siblings.map((s) => s.id) : [id];
+  let changed = false;
+  targets.forEach((tid) => {
+    if (!openIds.includes(tid)) {
+      openIds.push(tid);
+      changed = true;
+    }
+  });
+  if (changed) {
     saveOpenIds();
     renderBoard();
     renderTabs();
@@ -282,17 +396,6 @@ function closeBoardItem(id) {
   renderThread();
 }
 
-function closeAllBoardItems() {
-  openIds = [];
-  activeId = null;
-  saveOpenIds();
-  renderBoard();
-  renderTabs();
-  renderThread();
-}
-
-closeAllBtn.addEventListener('click', closeAllBoardItems);
-
 /* ---------- Lightbox ---------- */
 let lbCurrentId = null;
 
@@ -300,19 +403,40 @@ function openLightbox(id) {
   const item = items.find((i) => i.id === id);
   if (!item) return;
   lbCurrentId = id;
-  lightboxTitle.textContent = item.prompt;
+  const siblings = getGroupSiblings(item);
+  lightboxTitle.textContent = item.prompt + (siblings
+    ? `  ·  ${item.pageLabel || `Page ${(item.pageIndex ?? 0) + 1}`} (${(item.pageIndex ?? 0) + 1}/${siblings.length})`
+    : '');
   lightboxStage.innerHTML = '';
   const f = makeEl('iframe');
   f.src = `/preview/${encodeURIComponent(id)}`;
   f.title = item.prompt;
   f.setAttribute('sandbox', 'allow-scripts');
   lightboxStage.appendChild(f);
+
+  // If grouped, render a thin page strip at the bottom of the lightbox
+  const oldStrip = lightboxStage.parentElement.querySelector('.lb-pagestrip');
+  if (oldStrip) oldStrip.remove();
+  if (siblings) {
+    const strip = makeEl('div', 'lb-pagestrip');
+    siblings.forEach((s) => {
+      const pill = makeEl('button', 'lb-pill' + (s.id === id ? ' active' : ''));
+      pill.type = 'button';
+      pill.textContent = s.pageLabel || `Page ${(s.pageIndex ?? 0) + 1}`;
+      pill.addEventListener('click', () => openLightbox(s.id));
+      strip.appendChild(pill);
+    });
+    lightboxStage.parentElement.appendChild(strip);
+  }
+
   lightbox.hidden = false;
   document.body.style.overflow = 'hidden';
 }
 function closeLightbox() {
   lightbox.hidden = true;
   lightboxStage.innerHTML = '';
+  const oldStrip = lightboxStage.parentElement.querySelector('.lb-pagestrip');
+  if (oldStrip) oldStrip.remove();
   lbCurrentId = null;
   document.body.style.overflow = '';
 }
@@ -328,7 +452,16 @@ lbCopy.addEventListener('click', () => { if (lbCurrentId) copyCode(lbCurrentId, 
 lbPng.addEventListener('click', () => { if (lbCurrentId) downloadPng(lbCurrentId, lbPng); });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
+  if (lightbox.hidden) return;
+  if (e.key === 'Escape') { closeLightbox(); return; }
+  // Arrow keys flip pages within a multi-page group
+  if (!lbCurrentId) return;
+  const cur = items.find((i) => i.id === lbCurrentId);
+  const sibs = getGroupSiblings(cur);
+  if (!sibs) return;
+  const idx = sibs.findIndex((s) => s.id === lbCurrentId);
+  if (e.key === 'ArrowRight' && idx < sibs.length - 1) openLightbox(sibs[idx + 1].id);
+  if (e.key === 'ArrowLeft' && idx > 0) openLightbox(sibs[idx - 1].id);
 });
 
 /* ---------- Card actions: Copy code & PNG ---------- */
@@ -454,12 +587,12 @@ async function loadAll() {
     const res = await fetch(`/api/generations?projectId=${encodeURIComponent(currentProjectId)}`);
     items = await res.json();
     if (!Array.isArray(items)) items = [];
-    // Drop board ids that no longer exist (e.g., db.json wiped)
+    // Drop board ids that no longer exist (e.g., db.json wiped) — but DON'T
+    // auto-add anything new. The board only shows what the user explicitly
+    // clicked on.
     const valid = openIds.filter((id) => items.some((i) => i.id === id));
     if (valid.length !== openIds.length) { openIds = valid; saveOpenIds(); }
-    if (!activeId || !items.some((i) => i.id === activeId)) {
-      activeId = openIds[openIds.length - 1] || null;
-    }
+    if (activeId && !items.some((i) => i.id === activeId)) activeId = null;
     renderThread();
     renderBoard();
     renderTabs();
@@ -487,28 +620,61 @@ async function generate(e) {
     .map((a) => ({ filename: a.filename, relPath: a.relPath, url: a.url }));
   const pend = appendPending(prompt, attachments);
 
+  // Live streaming: poll /api/generations while the server runs Claude. Each
+  // new HTML file the server persists shows up here within ~1.5s and we
+  // auto-open it on the board so the user sees pages arrive one by one.
+  const projectAtStart = currentProjectId;
+  const seenIds = new Set(items.map((it) => it.id));
+  let pendRemoved = false;
+  const pollTimer = setInterval(async () => {
+    if (!projectAtStart || projectAtStart !== currentProjectId) return;
+    try {
+      const r = await fetch(`/api/generations?projectId=${encodeURIComponent(projectAtStart)}`);
+      const fresh = await r.json();
+      if (!Array.isArray(fresh)) return;
+      const newOnes = fresh.filter((d) => !seenIds.has(d.id));
+      if (!newOnes.length) return;
+      newOnes.forEach((d) => seenIds.add(d.id));
+      items.push(...newOnes);
+      newOnes.forEach((d) => {
+        if (!openIds.includes(d.id)) openIds.push(d.id);
+      });
+      saveOpenIds();
+      if (!pendRemoved) { pend.remove(); pendRemoved = true; }
+      renderThread();
+      renderBoard();
+      renderTabs();
+    } catch { /* swallow — next tick retries */ }
+  }, 1500);
+
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, attachments, context: ctx, projectId: currentProjectId }),
     });
+    clearInterval(pollTimer);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || 'Generation failed');
 
-    items.push(data);
-    activeId = data.id;
-    if (!openIds.includes(data.id)) openIds.push(data.id);
+    // Multi-page response: { groupId, pageCount, records: [...] }
+    // Single-page response: a bare design record.
+    const records = Array.isArray(data?.records) ? data.records : [data];
+    records.forEach((rec) => {
+      const existing = items.findIndex((it) => it.id === rec.id);
+      if (existing >= 0) items[existing] = rec;
+      else items.push(rec);
+      if (!openIds.includes(rec.id)) openIds.push(rec.id);
+    });
     saveOpenIds();
-    pend.remove();
+    if (!pendRemoved) { pend.remove(); pendRemoved = true; }
     pendingAttachments = [];
     renderChips();
     renderThread();
     renderBoard();
     renderTabs();
-    // Smoothly scroll the new card into view
-    requestAnimationFrame(() => focusBoardItem(data.id));
   } catch (err) {
+    clearInterval(pollTimer);
     appendError('Error: ' + (err?.message || err), pend);
   } finally {
     sendBtn.disabled = false;
@@ -749,15 +915,18 @@ promptEl.addEventListener('keydown', (e) => {
   }
 });
 
-newChatBtn.addEventListener('click', () => {
-  activeId = null;
-  renderTabs();
-  renderThread();
-  promptEl.focus();
-});
+headerSettingsBtn.addEventListener('click', openOnboarding);
 
-/* ---------- Context state (persisted in localStorage) ---------- */
-const CTX_KEY = 'rockdesign:ctx';
+/* ---------- Context state (persisted per project) ---------- */
+// ctx (projectType / target / style / github / projectRef / localCode) used to
+// live in a single global key. That meant style preferences leaked across
+// projects — opening a marketing landing project still showed your old
+// "Mobile / Liquid glass" chips. Now each project gets its own key:
+//   rockdesign:ctx:<projectId>
+// On enterProject we look up that key first; if missing, fall back to the
+// seeded project.context the server returns.
+const CTX_KEY_PREFIX = 'rockdesign:ctx:';
+const CTX_LEGACY_KEY = 'rockdesign:ctx';
 const ONB_KEY = 'rockdesign:onboarded';
 
 const CTX_META = {
@@ -774,15 +943,32 @@ const VALUE_LABEL = {
   style: { 'liquid-glass': 'Liquid glass', minimal: 'Minimal', brutalist: 'Brutalist', editorial: 'Editorial' },
 };
 
-let ctx = loadCtx();
+let ctx = {};
 
-function loadCtx() {
-  try {
-    return JSON.parse(localStorage.getItem(CTX_KEY)) || {};
-  } catch { return {}; }
+function ctxKey(projectId) {
+  return CTX_KEY_PREFIX + projectId;
 }
+
+// Load context for a specific project. Precedence:
+//   1. per-project localStorage (`rockdesign:ctx:<id>`) — user's edits
+//   2. server-seeded project.context (from /api/projects)
+//   3. empty
+function loadCtxForProject(projectId) {
+  if (!projectId) return {};
+  try {
+    const raw = localStorage.getItem(ctxKey(projectId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch { /* fall through */ }
+  const p = projects.find((x) => x.id === projectId);
+  return (p && p.context && typeof p.context === 'object') ? { ...p.context } : {};
+}
+
 function saveCtx() {
-  try { localStorage.setItem(CTX_KEY, JSON.stringify(ctx)); } catch {}
+  if (!currentProjectId) return;
+  try { localStorage.setItem(ctxKey(currentProjectId), JSON.stringify(ctx)); } catch {}
   renderContextBar();
 }
 
@@ -924,11 +1110,6 @@ function renderEmptyHero() {
     hero.appendChild(row);
   }
 
-  const more = makeEl('button', 'open-onboarding', 'More preferences →');
-  more.type = 'button';
-  more.addEventListener('click', openOnboarding);
-  hero.appendChild(more);
-
   threadEl.appendChild(hero);
 }
 
@@ -962,6 +1143,27 @@ function showInputModal({ title, description, fields, submitLabel = 'Save', extr
       const wrap = makeEl('div', 'field');
       if (f.label) wrap.appendChild(makeEl('label', null, f.label));
       if (f.hint) wrap.appendChild(makeEl('span', 'hint', f.hint));
+      if (f.type === 'choice') {
+        const group = makeEl('div', 'choice-group');
+        let current = f.value || '';
+        const buttons = [];
+        f.options.forEach((opt) => {
+          const b = makeEl('button', 'choice-btn', opt.label);
+          b.type = 'button';
+          b.dataset.value = opt.value;
+          if (current === opt.value) b.classList.add('selected');
+          b.addEventListener('click', () => {
+            current = opt.value;
+            buttons.forEach((x) => x.classList.toggle('selected', x.dataset.value === current));
+          });
+          group.appendChild(b);
+          buttons.push(b);
+        });
+        inputs[f.name] = { isChoice: true, get value() { return current; } };
+        wrap.appendChild(group);
+        body.appendChild(wrap);
+        return;
+      }
       const el = f.multiline
         ? makeEl('textarea')
         : Object.assign(document.createElement('input'), { type: f.type || 'text' });
@@ -1001,7 +1203,10 @@ function showInputModal({ title, description, fields, submitLabel = 'Save', extr
     submit.type = 'button';
     submit.addEventListener('click', () => {
       const values = {};
-      for (const [k, el] of Object.entries(inputs)) values[k] = el.value.trim();
+      for (const [k, el] of Object.entries(inputs)) {
+        const v = el.value;
+        values[k] = typeof v === 'string' ? v.trim() : v;
+      }
       close(values);
     });
     actions.appendChild(submit);
@@ -1714,13 +1919,22 @@ function openProjectMenu(p, anchor) {
 async function openCreateProject() {
   const values = await showInputModal({
     title: 'New project',
-    description: 'Give this project a name. You can change it later.',
+    description: 'Give this project a name and pick a platform. You can change it later.',
     submitLabel: 'Create',
     fields: [{
       name: 'name',
       label: 'Project name',
       placeholder: 'e.g. Mira AI Studio',
       autofocus: true,
+    }, {
+      name: 'platform',
+      label: 'Platform',
+      type: 'choice',
+      value: 'web',
+      options: [
+        { value: 'web', label: 'Web' },
+        { value: 'mobile', label: 'Mobile' },
+      ],
     }],
   });
   if (!values || !values.name) return;
@@ -1728,7 +1942,7 @@ async function openCreateProject() {
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: values.name }),
+      body: JSON.stringify({ name: values.name, platform: values.platform }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || 'create failed');
@@ -1778,6 +1992,7 @@ async function openDeleteProject(p) {
       currentProjectId = null;
       localStorage.removeItem(PROJECT_KEY);
     }
+    try { localStorage.removeItem(ctxKey(p.id)); } catch {}
     renderHome();
   } catch (err) {
     alert('Delete failed: ' + (err?.message || err));
@@ -1790,6 +2005,14 @@ async function enterProject(id) {
   const p = projects.find((x) => x.id === id);
   projectNameEl.textContent = p ? p.name : 'Project';
   document.title = `rockdesign · ${p ? p.name : 'Project'}`;
+
+  // Per-project context. Precedence: user-saved → seeded → platform default.
+  ctx = loadCtxForProject(id);
+  if (Object.keys(ctx).length === 0 && p) {
+    if (p.platform === 'mobile') ctx = { projectType: 'mobile', target: 'mobile' };
+    else if (p.platform === 'web') ctx = { projectType: 'web', target: 'desktop' };
+  }
+  renderContextBar();
   setView('project');
   // Reset board state when switching projects
   openIds = [];
@@ -1805,6 +2028,8 @@ function leaveProject() {
   localStorage.removeItem(PROJECT_KEY);
   activeId = null;
   items = [];
+  ctx = {};
+  renderContextBar();
   setView('home');
   fetchProjects().then(renderHome);
 }
@@ -1812,13 +2037,37 @@ function leaveProject() {
 backHomeBtn.addEventListener('click', leaveProject);
 homeNewProjectBtn.addEventListener('click', openCreateProject);
 
+/* ---------- GitHub star count (best-effort, public API) ---------- */
+async function fetchGhStars() {
+  try {
+    const res = await fetch('https://api.github.com/repos/utkurock/rockdesign', {
+      headers: { 'Accept': 'application/vnd.github+json' },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const n = Number(data.stargazers_count);
+    if (!Number.isFinite(n)) return;
+    const label = n >= 1000 ? (n / 1000).toFixed(n < 10_000 ? 1 : 0) + 'k' : String(n);
+    document.querySelectorAll('.gh-star .gh-count').forEach((el) => {
+      el.textContent = label;
+      el.hidden = false;
+    });
+  } catch { /* offline or rate-limited — leave the count hidden */ }
+}
+
 /* ---------- First-run ---------- */
 autoSize(promptEl);
 renderContextBar();
+fetchGhStars();
 
 (async function bootstrap() {
+  // One-time migration: remove the old global ctx key — it was leaking
+  // preferences (e.g. "Mobile / Liquid glass") across unrelated projects.
+  // Per-project keys are populated on first edit in each project; until then
+  // each project shows its seeded context.
+  try { localStorage.removeItem(CTX_LEGACY_KEY); } catch {}
+
   await fetchProjects();
-  // If we have a saved project that still exists, jump straight in
   if (currentProjectId && projects.some((p) => p.id === currentProjectId)) {
     await enterProject(currentProjectId);
   } else {
@@ -1826,8 +2075,5 @@ renderContextBar();
     localStorage.removeItem(PROJECT_KEY);
     setView('home');
     renderHome();
-  }
-  if (!localStorage.getItem(ONB_KEY)) {
-    // Onboarding only makes sense inside a project — defer it
   }
 })();

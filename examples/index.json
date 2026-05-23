@@ -1,0 +1,24 @@
+{
+  "projects": [
+    {
+      "id": "quill",
+      "name": "Quill",
+      "prompt": "a 3-screen minimal habit tracker mobile app: today's list with a progress card, a streak view with a calendar grid, and settings with daily goal + reminders",
+      "context": { "projectType": "mobile", "target": "mobile", "style": "minimal" },
+      "files": [
+        { "file": "quill__p01-today.html",    "pageLabel": "Today",    "pageIndex": 0 },
+        { "file": "quill__p02-streak.html",   "pageLabel": "Streak",   "pageIndex": 1 },
+        { "file": "quill__p03-settings.html", "pageLabel": "Settings", "pageIndex": 2 }
+      ]
+    },
+    {
+      "id": "mira",
+      "name": "Mira — AI image studio",
+      "prompt": "a polished landing page for an AI image studio called Mira, with a hero, a canvas mockup showing prompt + 4 generated thumbnails, social proof logos, and a 3-up features section",
+      "context": { "projectType": "marketing", "target": "responsive", "style": "editorial" },
+      "files": [
+        { "file": "mira.html", "pageLabel": "Landing", "pageIndex": 0 }
+      ]
+    }
+  ]
+}

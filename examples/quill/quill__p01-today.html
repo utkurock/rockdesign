@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quill — Today</title>
+<style>
+  :root {
+    --bg: #F6F2EA;
+    --surface: #FFFFFF;
+    --ink: #1B1916;
+    --ink-2: #4A4742;
+    --ink-dim: #8B867D;
+    --hair: rgba(27, 25, 22, 0.07);
+    --hair-2: rgba(27, 25, 22, 0.14);
+    --accent: #2D6A4F;
+    --accent-soft: rgba(45, 106, 79, 0.10);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; -webkit-font-smoothing: antialiased; }
+  .phone { max-width: 410px; min-height: 100vh; margin: 0 auto; padding: 22px 22px 110px; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 22px; }
+  .greet { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.02em; }
+  .date { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+
+  .progress { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; padding: 20px; margin-bottom: 24px; }
+  .progress-head { display: flex; align-items: center; justify-content: space-between; }
+  .progress-label { font-size: 13px; color: var(--ink-2); }
+  .progress-pct { font-size: 13px; color: var(--ink-dim); }
+  .progress-num { font-size: 36px; font-weight: 600; letter-spacing: -0.03em; margin: 6px 0 12px; }
+  .progress-num small { font-size: 16px; color: var(--ink-dim); font-weight: 400; margin-left: 4px; }
+  .bar { height: 6px; background: var(--hair); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 60%; background: var(--accent); border-radius: 6px; }
+
+  .section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px 12px; }
+
+  .habit-list { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; overflow: hidden; }
+  .habit { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--hair); cursor: pointer; }
+  .habit:last-child { border-bottom: 0; }
+  .check { width: 24px; height: 24px; border: 1.5px solid var(--hair-2); border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 160ms ease; }
+  .check.done { background: var(--accent); border-color: var(--accent); }
+  .check.done svg { stroke: #fff; }
+  .check svg { stroke: transparent; }
+  .habit-info { flex: 1; min-width: 0; }
+  .habit-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+  .habit-meta { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  .habit.done .habit-name { color: var(--ink-dim); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .streak-chip { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: 999px; }
+
+  .tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 410px; display: flex; padding: 12px 22px 28px; background: rgba(246, 242, 234, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--hair); }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-dim); font-size: 10.5px; font-weight: 500; cursor: pointer; }
+  .tab.active { color: var(--ink); }
+  .tab svg { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="topbar">
+    <div>
+      <div class="greet">Good morning, Sam</div>
+      <div class="date">Saturday</div>
+    </div>
+    <div class="avatar">S</div>
+  </div>
+
+  <div class="progress">
+    <div class="progress-head">
+      <span class="progress-label">Today's progress</span>
+      <span class="progress-pct">3 of 5</span>
+    </div>
+    <div class="progress-num">60<small>%</small></div>
+    <div class="bar"><div class="bar-fill"></div></div>
+  </div>
+
+  <div class="section-title">Habits</div>
+  <div class="habit-list">
+    <div class="habit done">
+      <div class="check done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="habit-info"><div class="habit-name">Morning pages</div><div class="habit-meta">20 min · journaling</div></div>
+      <span class="streak-chip">12d</span>
+    </div>
+    <div class="habit done">
+      <div class="check done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="habit-info"><div class="habit-name">Read 25 pages</div><div class="habit-meta">Reading · book</div></div>
+      <span class="streak-chip">5d</span>
+    </div>
+    <div class="habit done">
+      <div class="check done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="habit-info"><div class="habit-name">Walk 30 minutes</div><div class="habit-meta">Movement</div></div>
+      <span class="streak-chip">3d</span>
+    </div>
+    <div class="habit">
+      <div class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="habit-info"><div class="habit-name">Drink 2L water</div><div class="habit-meta">Health · 1.2 / 2 L</div></div>
+      <span class="streak-chip">21d</span>
+    </div>
+    <div class="habit">
+      <div class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="habit-info"><div class="habit-name">No screens after 10pm</div><div class="habit-meta">Wind-down</div></div>
+      <span class="streak-chip">7d</span>
+    </div>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <div class="tab active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    Today
+  </div>
+  <div class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Streak
+  </div>
+  <div class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+    Library
+  </div>
+  <div class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    Settings
+  </div>
+</nav>
+</body>
+</html>

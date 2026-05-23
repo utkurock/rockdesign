@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mira — AI image studio</title>
+<style>
+  :root {
+    --bg: #FAF8F4;
+    --surface: #FFFFFF;
+    --ink: #131210;
+    --ink-2: #3A3833;
+    --ink-dim: #7E7A72;
+    --hair: rgba(19, 18, 16, 0.07);
+    --hair-2: rgba(19, 18, 16, 0.13);
+    --accent: #1E1B17;
+    --accent-2: #E5673A;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+
+  /* Nav */
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; border-bottom: 1px solid var(--hair); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+  .brand-dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); position: relative; }
+  .brand-dot::after { content: ''; position: absolute; top: 5px; left: 5px; width: 12px; height: 12px; border-radius: 2px; background: var(--accent-2); }
+  .nav-links { display: flex; align-items: center; gap: 32px; font-size: 13.5px; color: var(--ink-2); }
+  .nav-links a { color: inherit; text-decoration: none; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+  .btn { font-size: 13.5px; padding: 9px 16px; border-radius: 999px; border: 0; cursor: pointer; font-weight: 500; transition: opacity 120ms ease; }
+  .btn:hover { opacity: 0.85; }
+  .btn-ghost { background: transparent; color: var(--ink-2); }
+  .btn-primary { background: var(--ink); color: #fff; }
+
+  /* Hero */
+  .hero { padding: 92px 0 80px; max-width: 880px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); background: rgba(229, 103, 58, 0.10); padding: 6px 12px; border-radius: 999px; margin-bottom: 26px; font-weight: 500; }
+  .eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); }
+  h1 { font-size: 64px; line-height: 1.04; letter-spacing: -0.03em; font-weight: 600; margin: 0; }
+  h1 em { font-style: normal; color: var(--ink-dim); }
+  .hero-sub { font-size: 18px; color: var(--ink-2); margin: 22px 0 36px; max-width: 580px; line-height: 1.55; }
+  .hero-cta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .btn-lg { padding: 13px 22px; font-size: 14px; }
+  .play { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
+  .play-icon { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--hair-2); display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Canvas mock */
+  .canvas-wrap { padding-bottom: 96px; }
+  .canvas { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; padding: 22px; box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 26px 60px -28px rgba(19,18,16,0.16); }
+  .canvas-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid var(--hair); margin-bottom: 18px; }
+  .canvas-tabs { display: flex; gap: 4px; }
+  .ct { font-size: 12.5px; padding: 6px 12px; border-radius: 8px; color: var(--ink-2); cursor: pointer; }
+  .ct.active { background: var(--ink); color: #fff; }
+  .canvas-tools { display: flex; gap: 6px; color: var(--ink-dim); }
+  .tool { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .tool:hover { background: var(--hair); color: var(--ink); }
+
+  .canvas-grid { display: grid; grid-template-columns: 240px 1fr; gap: 18px; }
+
+  .prompt-panel { background: #FBF9F4; border: 1px solid var(--hair); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .panel-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-dim); }
+  .prompt-box { background: var(--surface); border: 1px solid var(--hair); border-radius: 10px; padding: 12px; font-size: 13px; color: var(--ink-2); line-height: 1.4; min-height: 86px; }
+  .prompt-box em { color: var(--accent-2); font-style: normal; font-weight: 600; }
+  .field { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--ink-2); }
+  .field-val { background: var(--surface); border: 1px solid var(--hair); padding: 4px 10px; border-radius: 7px; font-weight: 500; }
+  .gen-btn { background: var(--accent-2); color: #fff; border: 0; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+  .image-area { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; min-height: 380px; }
+  .img-card { aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid var(--hair); }
+  .img-1 { background: linear-gradient(140deg, #E5673A 0%, #C53D1B 100%); }
+  .img-2 { background: linear-gradient(140deg, #2A2826 0%, #4A453E 100%); }
+  .img-3 { background: linear-gradient(140deg, #C9B89A 0%, #9A876B 100%); }
+  .img-4 { background: linear-gradient(140deg, #3D5648 0%, #1E2D24 100%); }
+  .img-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 50%);
+  }
+  .img-tag { position: absolute; bottom: 10px; left: 10px; font-size: 10.5px; color: #fff; background: rgba(0,0,0,0.45); padding: 4px 8px; border-radius: 6px; backdrop-filter: blur(8px); }
+
+  /* Logos */
+  .logos { padding: 64px 0 96px; border-top: 1px solid var(--hair); }
+  .logos-label { font-size: 12px; color: var(--ink-dim); text-align: center; margin-bottom: 24px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 500; }
+  .logo-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; opacity: 0.55; }
+  .logo { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink-2); }
+  .logo.italic { font-style: italic; }
+  .logo.mono { font-family: 'SF Mono', ui-monospace, monospace; font-size: 14px; }
+  .logo.thin { font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; font-size: 12px; }
+
+  /* Features */
+  .features { padding: 80px 0 100px; border-top: 1px solid var(--hair); }
+  .features-head { max-width: 640px; margin-bottom: 56px; }
+  h2 { font-size: 36px; line-height: 1.15; letter-spacing: -0.025em; font-weight: 600; margin: 0 0 14px; }
+  .lead { font-size: 16px; color: var(--ink-2); }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feature { background: var(--surface); border: 1px solid var(--hair); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 12px; }
+  .feature-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(229,103,58,0.10); color: var(--accent-2); display: flex; align-items: center; justify-content: center; }
+  .feature h3 { margin: 6px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .feature p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.55; }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--hair); padding: 32px 0 48px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-dim); }
+  footer a { color: inherit; text-decoration: none; margin-left: 22px; }
+
+  @media (max-width: 760px) {
+    h1 { font-size: 42px; }
+    .hero { padding: 56px 0 48px; }
+    .canvas-grid { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav container">
+  <div class="brand"><div class="brand-dot"></div> Mira</div>
+  <nav class="nav-links">
+    <a href="#">Studio</a>
+    <a href="#">Gallery</a>
+    <a href="#">Pricing</a>
+    <a href="#">Docs</a>
+  </nav>
+  <div class="nav-actions">
+    <button class="btn btn-ghost">Sign in</button>
+    <button class="btn btn-primary">Open studio</button>
+  </div>
+</header>
+
+<section class="container hero">
+  <span class="eyebrow"><span class="eyebrow-dot"></span> v3 · Brushless mode is live</span>
+  <h1>The image studio that <em>finishes the thought</em> with you.</h1>
+  <p class="hero-sub">Mira generates, refines, and re-composes — keeping every decision editable. No layers to flatten, no prompts to lose.</p>
+  <div class="hero-cta">
+    <button class="btn btn-primary btn-lg">Start a free draft</button>
+    <span class="play">
+      <span class="play-icon">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </span>
+      Watch the 90-second tour
+    </span>
+  </div>
+</section>
+
+<section class="container canvas-wrap">
+  <div class="canvas">
+    <div class="canvas-head">
+      <div class="canvas-tabs">
+        <div class="ct active">Compose</div>
+        <div class="ct">Iterate</div>
+        <div class="ct">Refine</div>
+        <div class="ct">Export</div>
+      </div>
+      <div class="canvas-tools">
+        <div class="tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7l-9 9-3-3-6 6"/><path d="M14 7h7v7"/></svg></div>
+        <div class="tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <div class="tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg></div>
+      </div>
+    </div>
+
+    <div class="canvas-grid">
+      <aside class="prompt-panel">
+        <div>
+          <div class="panel-label">Prompt</div>
+          <div class="prompt-box" style="margin-top:6px">An <em>amber-lit</em> still life of a single ripe persimmon on a linen-draped wooden table, late afternoon, painterly.</div>
+        </div>
+        <div>
+          <div class="panel-label">Settings</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <div class="field"><span>Variation</span><span class="field-val">4 images</span></div>
+            <div class="field"><span>Aspect</span><span class="field-val">1 : 1</span></div>
+            <div class="field"><span>Style</span><span class="field-val">Painterly</span></div>
+            <div class="field"><span>Seed</span><span class="field-val">3792</span></div>
+          </div>
+        </div>
+        <button class="gen-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/></svg>
+          Generate · 4 credits
+        </button>
+      </aside>
+
+      <div class="image-area">
+        <div class="img-card img-1"><span class="img-tag">v3 · 01</span></div>
+        <div class="img-card img-2"><span class="img-tag">v3 · 02</span></div>
+        <div class="img-card img-3"><span class="img-tag">v3 · 03</span></div>
+        <div class="img-card img-4"><span class="img-tag">v3 · 04</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container logos">
+  <div class="logos-label">Trusted by studios at</div>
+  <div class="logo-row">
+    <span class="logo">Marlowe</span>
+    <span class="logo italic">Editorial Press</span>
+    <span class="logo mono">north / south</span>
+    <span class="logo">Field Notes Co.</span>
+    <span class="logo thin">Atelier Sune</span>
+    <span class="logo">Halberd</span>
+  </div>
+</section>
+
+<section class="container features">
+  <div class="features-head">
+    <h2>Three things every generator gets wrong.</h2>
+    <p class="lead">Mira is shaped around the moments where the workflow usually breaks — and turns them into something you can actually edit.</p>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-9 3 18 3-9h3"/></svg>
+      </div>
+      <h3>Edits stay alive</h3>
+      <p>Every step is a non-destructive node. Re-run the prompt from yesterday, swap one parameter, keep the rest.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M19 5l-2 2M7 17l-2 2M19 19l-2-2M7 7L5 5"/></svg>
+      </div>
+      <h3>Real local control</h3>
+      <p>Mask any region and re-prompt only that area. Texture, lighting, palette — without smearing the rest of the frame.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 11h18M9 4v14"/></svg>
+      </div>
+      <h3>Side-by-side variants</h3>
+      <p>Generate four at once, lock the two that work, branch new variants only from those. Less scroll-back, more progress.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="container">
+  <span>© 2026 Mira Studio</span>
+  <span>
+    <a href="#">Changelog</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="#">Status</a>
+  </span>
+</footer>
+
+</body>
+</html>

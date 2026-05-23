@@ -1,4 +1,95 @@
 {
-  "projects": [],
-  "designs": []
+  "projects": [
+    {
+      "id": "quill",
+      "name": "Quill",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "isExample": true
+    },
+    {
+      "id": "mira",
+      "name": "Mira — AI image studio",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "isExample": true
+    }
+  ],
+  "designs": [
+    {
+      "id": "quill__p01-today",
+      "projectId": "quill",
+      "groupId": "seed_quill",
+      "pageIndex": 0,
+      "pageCount": 3,
+      "pageLabel": "Today",
+      "prompt": "a 3-screen minimal habit tracker mobile app: today's list with a progress card, a streak view with a calendar grid, and settings with daily goal + reminders",
+      "file": "quill__p01-today.html",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "cost": null,
+      "sessionId": null,
+      "attachments": [],
+      "context": {
+        "projectType": "mobile",
+        "target": "mobile",
+        "style": "minimal"
+      },
+      "isExample": true
+    },
+    {
+      "id": "quill__p02-streak",
+      "projectId": "quill",
+      "groupId": "seed_quill",
+      "pageIndex": 1,
+      "pageCount": 3,
+      "pageLabel": "Streak",
+      "prompt": "a 3-screen minimal habit tracker mobile app: today's list with a progress card, a streak view with a calendar grid, and settings with daily goal + reminders",
+      "file": "quill__p02-streak.html",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "cost": null,
+      "sessionId": null,
+      "attachments": [],
+      "context": {
+        "projectType": "mobile",
+        "target": "mobile",
+        "style": "minimal"
+      },
+      "isExample": true
+    },
+    {
+      "id": "quill__p03-settings",
+      "projectId": "quill",
+      "groupId": "seed_quill",
+      "pageIndex": 2,
+      "pageCount": 3,
+      "pageLabel": "Settings",
+      "prompt": "a 3-screen minimal habit tracker mobile app: today's list with a progress card, a streak view with a calendar grid, and settings with daily goal + reminders",
+      "file": "quill__p03-settings.html",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "cost": null,
+      "sessionId": null,
+      "attachments": [],
+      "context": {
+        "projectType": "mobile",
+        "target": "mobile",
+        "style": "minimal"
+      },
+      "isExample": true
+    },
+    {
+      "id": "mira",
+      "projectId": "mira",
+      "pageLabel": "Landing",
+      "prompt": "a polished landing page for an AI image studio called Mira, with a hero, a canvas mockup showing prompt + 4 generated thumbnails, social proof logos, and a 3-up features section",
+      "file": "mira.html",
+      "createdAt": "2026-05-23T04:28:36.767Z",
+      "cost": null,
+      "sessionId": null,
+      "attachments": [],
+      "context": {
+        "projectType": "marketing",
+        "target": "responsive",
+        "style": "editorial"
+      },
+      "isExample": true
+    }
+  ]
 }
