@@ -32,6 +32,12 @@
         "target": "responsive",
         "style": "minimal"
       }
+    },
+    {
+      "id": "2323",
+      "name": "2323",
+      "platform": "web",
+      "createdAt": "2026-05-23T11:52:58.386Z"
     }
   ],
   "designs": [

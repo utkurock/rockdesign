@@ -317,6 +317,21 @@ html, body {
 .send:active { transform: scale(0.96); }
 .send[disabled] { opacity: 0.5; cursor: progress; }
 
+/* Model picker popover (mirrors .attach-popover layout, right-anchored) */
+.model-popover {
+  left: auto;
+  right: 6px;
+  width: 240px;
+}
+.pop-item .pop-check {
+  display: none;
+  color: var(--ink);
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+.pop-item.is-active { background: var(--bg); }
+.pop-item.is-active .pop-check { display: inline-flex; }
+
 /* Attach chips */
 .attach-chips {
   display: flex;

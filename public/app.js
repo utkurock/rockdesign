@@ -54,6 +54,61 @@ collapseChatBtn?.addEventListener('click', () => setChatCollapsed(true));
 expandChatBtn?.addEventListener('click', () => setChatCollapsed(false));
 try { if (localStorage.getItem(CHAT_COLLAPSED_KEY) === '1') shellEl.classList.add('chat-collapsed'); } catch {}
 
+/* ---------- Model picker (Fast = Sonnet, Quality = Opus) ---------- */
+const MODEL_KEY = 'rockdesign:model';
+const VALID_MODELS = new Set(['sonnet', 'opus']);
+const modelBtn = $('#modelBtn');
+const modelPop = $('#modelPop');
+function getModel() {
+  try {
+    const v = localStorage.getItem(MODEL_KEY);
+    if (VALID_MODELS.has(v)) return v;
+  } catch {}
+  return 'sonnet';
+}
+function renderModelChoice() {
+  const m = getModel();
+  modelPop?.querySelectorAll('.pop-item[data-model]').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.model === m);
+  });
+  modelBtn?.setAttribute('title', m === 'opus' ? 'Model: Quality (Opus)' : 'Model: Fast (Sonnet)');
+}
+function setModel(m) {
+  if (!VALID_MODELS.has(m)) return;
+  try { localStorage.setItem(MODEL_KEY, m); } catch {}
+  renderModelChoice();
+}
+function closeModelPop() {
+  if (!modelPop) return;
+  modelPop.hidden = true;
+  modelBtn?.setAttribute('aria-expanded', 'false');
+}
+function openModelPop() {
+  if (!modelPop) return;
+  renderModelChoice();
+  modelPop.hidden = false;
+  modelBtn?.setAttribute('aria-expanded', 'true');
+}
+modelBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (modelPop?.hidden) openModelPop(); else closeModelPop();
+});
+modelPop?.addEventListener('click', (e) => {
+  const item = e.target.closest('.pop-item[data-model]');
+  if (!item) return;
+  setModel(item.dataset.model);
+  closeModelPop();
+});
+document.addEventListener('click', (e) => {
+  if (!modelPop || modelPop.hidden) return;
+  if (modelPop.contains(e.target) || modelBtn.contains(e.target)) return;
+  closeModelPop();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modelPop && !modelPop.hidden) closeModelPop();
+});
+renderModelChoice();
+
 /* ---------- Board pan + zoom (Figma-style canvas freedom) ---------- */
 const ZOOM_KEY = 'rockdesign:zoom';
 const ZOOM_MIN = 0.35;
@@ -852,7 +907,7 @@ async function generate(e) {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, attachments, context: ctx, projectId: currentProjectId }),
+      body: JSON.stringify({ prompt, attachments, context: ctx, projectId: currentProjectId, model: getModel() }),
     });
     clearInterval(pollTimer);
     const data = await res.json();

@@ -964,6 +964,11 @@ app.post('/api/generate', async (req, res) => {
     return res.status(404).json({ error: 'project not found' });
   }
 
+  // model: 'sonnet' (fast, default) or 'opus' (quality). Whitelisted so user
+  // input can't smuggle other strings through to the CLI.
+  const rawModel = (req.body?.model || '').toString().trim().toLowerCase();
+  const model = rawModel === 'opus' || rawModel === 'sonnet' ? rawModel : 'sonnet';
+
   const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments : [];
   const validAttachments = [];
   for (const a of attachments) {
@@ -1059,7 +1064,9 @@ app.post('/api/generate', async (req, res) => {
 
   const t0 = Date.now();
   const preview = prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt;
+  const modeTag = model === 'opus' ? COLOR.yellow('quality') : COLOR.green('fast');
   logLine(COLOR.cyan('▶ generate'), COLOR.bold(id),
+    modeTag,
     `attachments=${validAttachments.length}`,
     contextLines.length ? `ctx=${contextLines.length}` : '',
     `\n          ${COLOR.dim('prompt:')} ${preview}`);
@@ -1211,7 +1218,7 @@ app.post('/api/generate', async (req, res) => {
   }, 1000);
 
   try {
-    const result = await runClaude(instruction);
+    const result = await runClaude(instruction, model);
     clearInterval(streamInterval);
     const groupRecords = await finalizeGroup(result);
 
@@ -1294,15 +1301,19 @@ async function findClaude() {
   return 'claude'; // last-ditch; will likely fail but with a clear ENOENT
 }
 
-async function runClaude(instruction) {
+async function runClaude(instruction, model) {
   const bin = await findClaude();
+  // Env var still overrides per-call choice for power users / scripts.
+  const resolvedModel = process.env.CLAUDE_MODEL || model || 'sonnet';
+  // Opus → fall back to Sonnet on overload. Sonnet has no equivalent fallback
+  // (falling back to Opus would defeat the "fast" intent), so omit.
   return new Promise((resolve, reject) => {
     const args = [
       '-p', instruction,
       '--output-format', 'json',
       '--allowedTools', 'Write,Read',
-      '--model', process.env.CLAUDE_MODEL || 'opus',
-      '--fallback-model', 'sonnet',
+      '--model', resolvedModel,
+      ...(resolvedModel === 'opus' ? ['--fallback-model', 'sonnet'] : []),
     ];
 
     const child = spawn(bin, args, {
