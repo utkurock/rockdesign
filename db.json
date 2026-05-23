@@ -1,12 +1,4 @@
-[
-  {
-    "id": "a-tiny-minimal-hello-card-just-an-h1-and-one-button",
-    "prompt": "a tiny minimal hello card, just an h1 and one button",
-    "file": "a-tiny-minimal-hello-card-just-an-h1-and-one-button.html",
-    "createdAt": "2026-05-23T03:12:45.419Z",
-    "cost": 0.20419775,
-    "sessionId": "96c2a837-7714-467c-84d3-438c2d81f6d7",
-    "attachments": [],
-    "context": null
-  }
-]
+{
+  "projects": [],
+  "designs": []
+}

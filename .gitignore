@@ -24,5 +24,8 @@ yarn-error.log*
 dist/
 build/
 .cache/
+
+# Local design history + generated files (per-machine)
 db.json
-db.json
+generations/*.html
+generations/_attachments/

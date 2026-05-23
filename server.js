@@ -128,23 +128,51 @@ app.use('/api', (err, _req, res, _next) => {
 });
 
 // --- db.json helpers ---
+// Schema:
+//   { projects: [{ id, name, createdAt, context? }],
+//     designs:  [{ id, projectId, prompt, file, createdAt, cost, ... }] }
+// Legacy (pre-projects) shape: a top-level array of designs. On first read we
+// migrate it into a single "Default" project so nothing is lost.
 async function readDb() {
-  try {
-    const raw = await fs.readFile(DB_PATH, 'utf8');
-    const parsed = JSON.parse(raw || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    if (err.code === 'ENOENT') return [];
+  let raw;
+  try { raw = await fs.readFile(DB_PATH, 'utf8'); }
+  catch (err) {
+    if (err.code === 'ENOENT') return { projects: [], designs: [] };
     throw err;
   }
+  let parsed;
+  try { parsed = JSON.parse(raw || 'null'); } catch { parsed = null; }
+
+  if (Array.isArray(parsed)) {
+    // legacy → wrap into a Default project
+    if (parsed.length === 0) return { projects: [], designs: [] };
+    const defaultProject = {
+      id: 'default',
+      name: 'Default',
+      createdAt: parsed[0]?.createdAt || new Date().toISOString(),
+    };
+    const designs = parsed.map((d) => ({ ...d, projectId: 'default' }));
+    return { projects: [defaultProject], designs };
+  }
+  if (parsed && typeof parsed === 'object') {
+    return {
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      designs: Array.isArray(parsed.designs) ? parsed.designs : [],
+    };
+  }
+  return { projects: [], designs: [] };
 }
 
 // Serialize writes so concurrent /api/generate calls don't clobber db.json
 let dbWriteChain = Promise.resolve();
-async function writeDb(items) {
+async function writeDb(data) {
+  const payload = {
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    designs: Array.isArray(data.designs) ? data.designs : [],
+  };
   const next = dbWriteChain.then(async () => {
     const tmp = DB_PATH + '.tmp';
-    await fs.writeFile(tmp, JSON.stringify(items, null, 2));
+    await fs.writeFile(tmp, JSON.stringify(payload, null, 2));
     await fs.rename(tmp, DB_PATH);
   });
   dbWriteChain = next.catch(() => {});
@@ -221,10 +249,17 @@ async function reconcileOrphans() {
     .map((e) => e.name);
   if (!htmls.length) return { added: 0 };
 
-  const items = await readDb();
-  const have = new Set(items.map((it) => it.file || (it.id + '.html')));
+  const db = await readDb();
+  const have = new Set(db.designs.map((it) => it.file || (it.id + '.html')));
   const orphans = htmls.filter((f) => !have.has(f));
   if (!orphans.length) return { added: 0 };
+
+  // Orphan designs go into a "Recovered" project so they're not loose.
+  let recoveredProject = db.projects.find((p) => p.id === '__recovered');
+  if (!recoveredProject) {
+    recoveredProject = { id: '__recovered', name: 'Recovered', createdAt: new Date().toISOString() };
+    db.projects.push(recoveredProject);
+  }
 
   for (const filename of orphans) {
     const full = path.join(GEN_DIR, filename);
@@ -232,7 +267,6 @@ async function reconcileOrphans() {
     try {
       const stat = await fs.stat(full);
       mtime = stat.mtime;
-      // Read just enough to grab the title (first 8KB is plenty)
       const fh = await fs.open(full, 'r');
       try {
         const buf = Buffer.alloc(8192);
@@ -244,8 +278,9 @@ async function reconcileOrphans() {
     } catch { /* skip */ continue; }
 
     const id = filename.replace(/\.html$/i, '');
-    items.push({
+    db.designs.push({
       id,
+      projectId: '__recovered',
       prompt: title || `(recovered) ${id}`,
       file: filename,
       createdAt: (mtime || new Date()).toISOString(),
@@ -256,58 +291,123 @@ async function reconcileOrphans() {
       recovered: true,
     });
   }
-  await writeDb(items);
+  await writeDb(db);
   return { added: orphans.length };
 }
 
 // --- routes ---
 
-// Rolling-window usage. Claude Code's Pro/Max plans run on a 5-hour rolling
-// limit; we can't read your real quota, but we can show what you've actually
-// spent through rockdesign in the window so far.
-app.get('/api/usage', async (req, res) => {
+// --- Project endpoints ---
+
+app.get('/api/projects', async (_req, res) => {
   try {
-    const hours = Math.min(Math.max(parseFloat(req.query.hours) || 5, 0.25), 48);
-    const items = await readDb();
-    const now = Date.now();
-    const cutoff = now - hours * 3600_000;
-    const window = items.filter((it) => {
-      const t = Date.parse(it.createdAt || '');
-      return Number.isFinite(t) && t >= cutoff;
+    await reconcileOrphans().catch(() => {});
+    const db = await readDb();
+    // Enrich each project with design count + last activity + a thumbnail id
+    const enriched = db.projects.map((p) => {
+      const items = db.designs.filter((d) => d.projectId === p.id);
+      items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      const latest = items[0];
+      const totalCost = items.reduce((s, it) => s + (Number(it.cost) || 0), 0);
+      return {
+        ...p,
+        designCount: items.length,
+        lastDesignAt: latest?.createdAt || p.createdAt,
+        lastDesignId: latest?.id || null,
+        totalCost: Number(totalCost.toFixed(4)),
+      };
     });
-    const totalCost = window.reduce((s, it) => s + (Number(it.cost) || 0), 0);
-    // The oldest generation in the window is what rolls off first; report
-    // how long until it does so the UI can show a countdown.
-    let nextResetMs = null;
-    if (window.length) {
-      const oldest = window
-        .map((it) => Date.parse(it.createdAt || ''))
-        .filter(Number.isFinite)
-        .reduce((a, b) => Math.min(a, b), Infinity);
-      if (Number.isFinite(oldest)) {
-        nextResetMs = Math.max(0, oldest + hours * 3600_000 - now);
-      }
-    }
-    res.json({
-      hours,
-      count: window.length,
-      totalCost: Number(totalCost.toFixed(4)),
-      nextResetMs,
-      sinceIso: new Date(cutoff).toISOString(),
-    });
+    enriched.sort((a, b) => (b.lastDesignAt || '').localeCompare(a.lastDesignAt || ''));
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: String(err?.message || err) });
   }
 });
 
-app.get('/api/generations', async (_req, res) => {
+function newProjectId(name, existing) {
+  const base = slugify(name) || ('project-' + Math.random().toString(36).slice(2, 8));
+  if (!existing.has(base)) return base;
+  let i = 2;
+  while (existing.has(`${base}-${i}`)) i++;
+  return `${base}-${i}`;
+}
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    const name = (req.body?.name || '').toString().trim().slice(0, 80);
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const db = await readDb();
+    const existing = new Set(db.projects.map((p) => p.id));
+    const id = newProjectId(name, existing);
+    const project = {
+      id,
+      name,
+      createdAt: new Date().toISOString(),
+    };
+    db.projects.push(project);
+    await writeDb(db);
+    logLine(COLOR.cyan('+ project'), id, COLOR.dim(`"${name}"`));
+    res.json(project);
+  } catch (err) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+app.patch('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const name = (req.body?.name || '').toString().trim().slice(0, 80);
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const db = await readDb();
+    const project = db.projects.find((p) => p.id === id);
+    if (!project) return res.status(404).json({ error: 'project not found' });
+    project.name = name;
+    await writeDb(db);
+    logLine(COLOR.cyan('~ project'), id, COLOR.dim(`renamed → "${name}"`));
+    res.json(project);
+  } catch (err) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const db = await readDb();
+    const idx = db.projects.findIndex((p) => p.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'project not found' });
+
+    // Remove HTML files for every design in this project (best-effort)
+    const owned = db.designs.filter((d) => d.projectId === id);
+    let removedFiles = 0;
+    for (const d of owned) {
+      const f = path.join(GEN_DIR, d.file || (d.id + '.html'));
+      try { await fs.unlink(f); removedFiles++; } catch { /* already gone */ }
+    }
+    db.projects.splice(idx, 1);
+    db.designs = db.designs.filter((d) => d.projectId !== id);
+    await writeDb(db);
+    logLine(COLOR.red('- project'), id,
+      COLOR.dim(`removed (${owned.length} designs, ${removedFiles} files)`));
+    res.json({ ok: true, removedDesigns: owned.length, removedFiles });
+  } catch (err) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+app.get('/api/generations', async (req, res) => {
   try {
     // Cheap orphan reconciliation so designs Claude wrote but the server
     // didn't get to persist (kill mid-flight, crash, etc.) still appear.
     await reconcileOrphans().catch(() => {});
-    const items = await readDb();
-    items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    res.json(items);
+    const db = await readDb();
+    let designs = db.designs;
+    const wantProject = (req.query.projectId || '').toString().trim();
+    if (wantProject) designs = designs.filter((d) => d.projectId === wantProject);
+    designs = designs.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json(designs);
   } catch (err) {
     res.status(500).json({ error: String(err?.message || err) });
   }
@@ -810,6 +910,16 @@ app.post('/api/generate', async (req, res) => {
     return res.status(400).json({ error: 'prompt too long (max 4000)' });
   }
 
+  const projectId = (req.body?.projectId || '').toString().trim();
+  if (!projectId) {
+    return res.status(400).json({ error: 'projectId is required — open or create a project first' });
+  }
+  const dbForCheck = await readDb();
+  const project = dbForCheck.projects.find((p) => p.id === projectId);
+  if (!project) {
+    return res.status(404).json({ error: 'project not found' });
+  }
+
   const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments : [];
   const validAttachments = [];
   for (const a of attachments) {
@@ -938,6 +1048,7 @@ app.post('/api/generate', async (req, res) => {
 
     const record = {
       id,
+      projectId,
       prompt,
       file: targetFile,
       createdAt: new Date().toISOString(),
@@ -951,9 +1062,9 @@ app.post('/api/generate', async (req, res) => {
       context: contextLines.length ? context : null,
     };
 
-    const items = await readDb();
-    items.push(record);
-    await writeDb(items);
+    const db = await readDb();
+    db.designs.push(record);
+    await writeDb(db);
 
     const ms = Date.now() - t0;
     logLine(COLOR.green('✓ generate'), id, COLOR.dim(`${(ms / 1000).toFixed(1)}s`),

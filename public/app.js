@@ -40,15 +40,19 @@ const connBackdrop = $('#connBackdrop');
 const connClose = $('#connClose');
 const connectorsList = $('#connectorsList');
 const inputBackdrop = $('#inputBackdrop');
-const usagePill = $('#usagePill');
-const usageText = $('#usageText');
-const emptyUsage = $('#emptyUsage');
-const emptyUsageRow = $('#emptyUsageRow');
+const homeEl = $('#home');
+const homeBodyEl = $('#homeBody');
+const shellEl = $('#shell');
+const backHomeBtn = $('#backHome');
+const projectNameEl = $('#projectName');
+const homeNewProjectBtn = $('#homeNewProject');
 
 let items = [];
 let activeId = null;
 let pendingAttachments = []; // [{ id, filename, relPath, url, isImg }]
 let openIds = loadOpenIds(); // ids currently on the board
+let projects = [];           // [{ id, name, designCount, lastDesignAt, ... }]
+let currentProjectId = localStorage.getItem('rockdesign:project') || null;
 
 const OPEN_KEY = 'rockdesign:open';
 function loadOpenIds() {
@@ -445,8 +449,9 @@ function appendError(msg, pendingEl) {
 }
 
 async function loadAll() {
+  if (!currentProjectId) { items = []; return; }
   try {
-    const res = await fetch('/api/generations');
+    const res = await fetch(`/api/generations?projectId=${encodeURIComponent(currentProjectId)}`);
     items = await res.json();
     if (!Array.isArray(items)) items = [];
     // Drop board ids that no longer exist (e.g., db.json wiped)
@@ -486,7 +491,7 @@ async function generate(e) {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, attachments, context: ctx }),
+      body: JSON.stringify({ prompt, attachments, context: ctx, projectId: currentProjectId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || 'Generation failed');
@@ -501,7 +506,6 @@ async function generate(e) {
     renderThread();
     renderBoard();
     renderTabs();
-    fetchUsage();
     // Smoothly scroll the new card into view
     requestAnimationFrame(() => focusBoardItem(data.id));
   } catch (err) {
@@ -1567,87 +1571,263 @@ function escapeHtml(s) {
   })[c]);
 }
 
-/* ---------- 5-hour Claude usage indicator ---------- */
-let lastUsage = null;
+/* ---------- View router (home ↔ project) ---------- */
 
-function fmtResetTime(ms) {
-  if (ms == null) return '';
-  if (ms <= 0) return 'window resets now';
-  const totalMin = Math.ceil(ms / 60_000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h && m) return `${h}h ${m}m until window rolls`;
-  if (h)      return `${h}h until window rolls`;
-  return `${m}m until window rolls`;
-}
+const PROJECT_KEY = 'rockdesign:project';
 
-function renderUsage() {
-  if (!lastUsage) {
-    usagePill.hidden = true;
-    emptyUsage.hidden = true;
-    return;
-  }
-  const { count, totalCost, nextResetMs } = lastUsage;
-  if (count === 0) {
-    usagePill.hidden = true;
-    emptyUsage.hidden = true;
-    return;
-  }
-  usagePill.hidden = false;
-  // Drop the old warn/alert thresholds — they were arbitrary guesses,
-  // not aligned with anything the user can act on.
-  usagePill.classList.remove('warn', 'alert');
-  usageText.textContent =
-    `rockdesign · ${count} ${count === 1 ? 'design' : 'designs'} · $${Number(totalCost).toFixed(2)} (5h)`;
-  usagePill.title =
-    `What rockdesign has spent through claude -p in the last 5h: ` +
-    `${count} generation${count === 1 ? '' : 's'}, $${Number(totalCost).toFixed(3)} observed cost.\n\n` +
-    `This is NOT your Claude Pro/Max session quota. ` +
-    `For your real 5-hour usage and reset time, open the Claude Code Settings UI.`;
-
-  // Empty-state version (under "No design open")
-  emptyUsage.hidden = false;
-  emptyUsageRow.innerHTML = '';
-  const seg = (label, value) => {
-    const s = makeEl('span');
-    s.appendChild(makeEl('span', null, label));
-    s.appendChild(document.createTextNode(' '));
-    s.appendChild(makeEl('strong', null, value));
-    return s;
-  };
-  emptyUsageRow.appendChild(seg('rockdesign 5h:', `${count} ${count === 1 ? 'design' : 'designs'}`));
-  const sep1 = makeEl('span', 'sep'); emptyUsageRow.appendChild(sep1);
-  emptyUsageRow.appendChild(seg('observed cost:', `$${Number(totalCost).toFixed(2)}`));
-  if (nextResetMs != null) {
-    const sep2 = makeEl('span', 'sep'); emptyUsageRow.appendChild(sep2);
-    emptyUsageRow.appendChild(seg('window rolls in:', fmtResetTime(nextResetMs).replace(' until window rolls', '')));
+function setView(view) {
+  if (view === 'home') {
+    homeEl.hidden = false;
+    shellEl.hidden = true;
+    document.title = 'rockdesign';
+  } else {
+    homeEl.hidden = true;
+    shellEl.hidden = false;
   }
 }
 
-async function fetchUsage() {
+async function fetchProjects() {
   try {
-    const res = await fetch('/api/usage?hours=5');
-    if (!res.ok) return;
-    lastUsage = await res.json();
-    renderUsage();
-  } catch { /* keep last value */ }
+    const res = await fetch('/api/projects');
+    const data = await res.json();
+    projects = Array.isArray(data) ? data : [];
+  } catch {
+    projects = [];
+  }
 }
 
-// Re-render every minute so the "Xh Ym until window rolls" countdown stays
-// fresh without re-fetching from the server.
-setInterval(() => {
-  if (!lastUsage || lastUsage.nextResetMs == null) return;
-  lastUsage.nextResetMs = Math.max(0, lastUsage.nextResetMs - 60_000);
-  renderUsage();
-}, 60_000);
+function fmtRelative(iso) {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  try {
+    return new Date(t).toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+  } catch { return ''; }
+}
+
+function renderHome() {
+  homeBodyEl.innerHTML = '';
+  if (!projects.length) {
+    const hero = makeEl('div', 'home-hero');
+    hero.appendChild(makeEl('h2', null, 'No projects yet'));
+    hero.appendChild(makeEl('p', null, 'Create a project to start designing. Each project keeps its own chat history and designs.'));
+    const cta = makeEl('button', 'btn-primary', 'Create your first project');
+    cta.type = 'button';
+    cta.addEventListener('click', openCreateProject);
+    hero.appendChild(cta);
+    homeBodyEl.appendChild(hero);
+    return;
+  }
+
+  const grid = makeEl('div', 'project-grid');
+  projects.forEach((p) => grid.appendChild(buildProjectCard(p)));
+  homeBodyEl.appendChild(grid);
+}
+
+function buildProjectCard(p) {
+  const card = makeEl('article', 'project-card');
+  card.dataset.id = p.id;
+
+  // Thumbnail (iframe of latest design, or placeholder)
+  const thumb = makeEl('div', 'project-thumb');
+  if (p.lastDesignId) {
+    const iframe = makeEl('iframe');
+    iframe.src = `/preview/${encodeURIComponent(p.lastDesignId)}`;
+    iframe.loading = 'lazy';
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.setAttribute('scrolling', 'no');
+    iframe.title = p.name;
+    thumb.appendChild(iframe);
+  } else {
+    const empty = makeEl('div', 'project-thumb-empty');
+    empty.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4h16v12H4z"/><path d="M4 20h16"/></svg>';
+    empty.appendChild(makeEl('span', null, 'Empty'));
+    thumb.appendChild(empty);
+  }
+  card.appendChild(thumb);
+
+  // Body
+  const body = makeEl('div', 'project-body');
+  const titleRow = makeEl('div', 'project-title-row');
+  const title = makeEl('h3', 'project-title', p.name);
+  titleRow.appendChild(title);
+
+  const menu = makeEl('button', 'project-menu');
+  menu.type = 'button';
+  menu.title = 'Project options';
+  menu.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+  menu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openProjectMenu(p, menu);
+  });
+  titleRow.appendChild(menu);
+  body.appendChild(titleRow);
+
+  const meta = makeEl('div', 'project-meta');
+  const count = p.designCount || 0;
+  meta.textContent = `${count} ${count === 1 ? 'design' : 'designs'} · ${fmtRelative(p.lastDesignAt) || 'no activity'}` +
+    (p.totalCost ? ` · $${p.totalCost.toFixed(2)}` : '');
+  body.appendChild(meta);
+  card.appendChild(body);
+
+  card.addEventListener('click', () => enterProject(p.id));
+  return card;
+}
+
+let openMenuEl = null;
+function closeProjectMenu() {
+  if (openMenuEl) { openMenuEl.remove(); openMenuEl = null; }
+  document.removeEventListener('click', onDocClickMenu, true);
+}
+function onDocClickMenu(e) {
+  if (openMenuEl && !openMenuEl.contains(e.target)) closeProjectMenu();
+}
+function openProjectMenu(p, anchor) {
+  closeProjectMenu();
+  const menu = makeEl('div', 'project-popmenu');
+  const renameItem = makeEl('button', 'pm-item', 'Rename');
+  renameItem.type = 'button';
+  renameItem.addEventListener('click', () => { closeProjectMenu(); openRenameProject(p); });
+  menu.appendChild(renameItem);
+
+  const deleteItem = makeEl('button', 'pm-item danger', 'Delete project…');
+  deleteItem.type = 'button';
+  deleteItem.addEventListener('click', () => { closeProjectMenu(); openDeleteProject(p); });
+  menu.appendChild(deleteItem);
+
+  const rect = anchor.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${rect.right - 160}px`;
+  document.body.appendChild(menu);
+  openMenuEl = menu;
+  setTimeout(() => document.addEventListener('click', onDocClickMenu, true), 0);
+}
+
+async function openCreateProject() {
+  const values = await showInputModal({
+    title: 'New project',
+    description: 'Give this project a name. You can change it later.',
+    submitLabel: 'Create',
+    fields: [{
+      name: 'name',
+      label: 'Project name',
+      placeholder: 'e.g. Mira AI Studio',
+      autofocus: true,
+    }],
+  });
+  if (!values || !values.name) return;
+  try {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: values.name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'create failed');
+    await fetchProjects();
+    renderHome();
+    enterProject(data.id);
+  } catch (err) {
+    alert('Failed to create project: ' + (err?.message || err));
+  }
+}
+
+async function openRenameProject(p) {
+  const values = await showInputModal({
+    title: 'Rename project',
+    fields: [{
+      name: 'name',
+      label: 'New name',
+      value: p.name,
+      autofocus: true,
+    }],
+  });
+  if (!values || !values.name || values.name === p.name) return;
+  try {
+    const res = await fetch(`/api/projects/${encodeURIComponent(p.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: values.name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'rename failed');
+    await fetchProjects();
+    renderHome();
+    if (currentProjectId === p.id) projectNameEl.textContent = data.name;
+  } catch (err) {
+    alert('Rename failed: ' + (err?.message || err));
+  }
+}
+
+async function openDeleteProject(p) {
+  if (!confirm(`Delete "${p.name}" and all ${p.designCount || 0} designs in it?\n\nThis cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/projects/${encodeURIComponent(p.id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'delete failed');
+    await fetchProjects();
+    if (currentProjectId === p.id) {
+      currentProjectId = null;
+      localStorage.removeItem(PROJECT_KEY);
+    }
+    renderHome();
+  } catch (err) {
+    alert('Delete failed: ' + (err?.message || err));
+  }
+}
+
+async function enterProject(id) {
+  currentProjectId = id;
+  localStorage.setItem(PROJECT_KEY, id);
+  const p = projects.find((x) => x.id === id);
+  projectNameEl.textContent = p ? p.name : 'Project';
+  document.title = `rockdesign · ${p ? p.name : 'Project'}`;
+  setView('project');
+  // Reset board state when switching projects
+  openIds = [];
+  saveOpenIds();
+  activeId = null;
+  await loadAll();
+  if (items.length === 0 && typeof renderEmptyHero === 'function') renderEmptyHero();
+  promptEl.focus();
+}
+
+function leaveProject() {
+  currentProjectId = null;
+  localStorage.removeItem(PROJECT_KEY);
+  activeId = null;
+  items = [];
+  setView('home');
+  fetchProjects().then(renderHome);
+}
+
+backHomeBtn.addEventListener('click', leaveProject);
+homeNewProjectBtn.addEventListener('click', openCreateProject);
 
 /* ---------- First-run ---------- */
 autoSize(promptEl);
 renderContextBar();
-loadAll().then(() => {
-  if (items.length === 0) renderEmptyHero();
-  if (!localStorage.getItem(ONB_KEY)) {
-    setTimeout(openOnboarding, 300);
+
+(async function bootstrap() {
+  await fetchProjects();
+  // If we have a saved project that still exists, jump straight in
+  if (currentProjectId && projects.some((p) => p.id === currentProjectId)) {
+    await enterProject(currentProjectId);
+  } else {
+    currentProjectId = null;
+    localStorage.removeItem(PROJECT_KEY);
+    setView('home');
+    renderHome();
   }
-  fetchUsage();
-});
+  if (!localStorage.getItem(ONB_KEY)) {
+    // Onboarding only makes sense inside a project — defer it
+  }
+})();
