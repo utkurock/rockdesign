@@ -45,6 +45,94 @@ const shellEl = $('#shell');
 const backHomeBtn = $('#backHome');
 const projectNameEl = $('#projectName');
 const homeNewProjectBtn = $('#homeNewProject');
+const collapseChatBtn = $('#collapseChat');
+const expandChatBtn = $('#expandChat');
+
+const CHAT_COLLAPSED_KEY = 'rockdesign:chatCollapsed';
+function setChatCollapsed(collapsed) {
+  shellEl.classList.toggle('chat-collapsed', collapsed);
+  try { localStorage.setItem(CHAT_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch {}
+}
+collapseChatBtn?.addEventListener('click', () => setChatCollapsed(true));
+expandChatBtn?.addEventListener('click', () => setChatCollapsed(false));
+try { if (localStorage.getItem(CHAT_COLLAPSED_KEY) === '1') shellEl.classList.add('chat-collapsed'); } catch {}
+
+/* ---------- Board pan + zoom (Figma-style canvas freedom) ---------- */
+const ZOOM_KEY = 'rockdesign:zoom';
+const ZOOM_MIN = 0.35;
+const ZOOM_MAX = 2.5;
+const zoomLevelEl = $('#zoomLevel');
+const zoomInBtn = $('#zoomIn');
+const zoomOutBtn = $('#zoomOut');
+let zoom = 1;
+try {
+  const saved = parseFloat(localStorage.getItem(ZOOM_KEY) || '');
+  if (Number.isFinite(saved) && saved >= ZOOM_MIN && saved <= ZOOM_MAX) zoom = saved;
+} catch {}
+function applyZoom() {
+  document.documentElement.style.setProperty('--zoom', String(zoom));
+  if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(zoom * 100)}%`;
+  try { localStorage.setItem(ZOOM_KEY, String(zoom)); } catch {}
+}
+function setZoom(z) {
+  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  applyZoom();
+}
+applyZoom();
+zoomInBtn?.addEventListener('click', () => setZoom(zoom * 1.15));
+zoomOutBtn?.addEventListener('click', () => setZoom(zoom / 1.15));
+zoomLevelEl?.addEventListener('click', () => setZoom(1));
+
+// Cmd/Ctrl + wheel zooms; plain wheel scrolls naturally.
+boardEl.addEventListener('wheel', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  setZoom(zoom * factor);
+}, { passive: false });
+
+// Click-and-drag pan on board background (not on cards' interactive bits).
+let panState = null;
+boardEl.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return; // left only
+  const onCard = e.target.closest('.board-card');
+  // Allow pan from card edges/iframe wrapper but not when clicking actions
+  if (e.target.closest('.card-act, .card-close, button, a, input, textarea, select')) return;
+  // Iframe pointer-events: none means clicks on phone screen hit .card-frame —
+  // we want those to pan too, but a quick click (no drag) still opens lightbox.
+  panState = {
+    x: e.clientX,
+    y: e.clientY,
+    sl: boardEl.scrollLeft,
+    st: boardEl.scrollTop,
+    onCard,
+    moved: false,
+  };
+});
+document.addEventListener('mousemove', (e) => {
+  if (!panState) return;
+  const dx = e.clientX - panState.x;
+  const dy = e.clientY - panState.y;
+  if (!panState.moved && Math.hypot(dx, dy) > 4) {
+    panState.moved = true;
+    boardEl.classList.add('panning');
+  }
+  if (panState.moved) {
+    boardEl.scrollLeft = panState.sl - dx;
+    boardEl.scrollTop = panState.st - dy;
+  }
+});
+document.addEventListener('mouseup', (e) => {
+  if (!panState) return;
+  const wasMoved = panState.moved;
+  panState = null;
+  boardEl.classList.remove('panning');
+  // If a drag happened, swallow the next click so we don't open the lightbox.
+  if (wasMoved) {
+    const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+    boardEl.addEventListener('click', swallow, { capture: true, once: true });
+  }
+});
 
 let items = [];
 let activeId = null;
@@ -229,6 +317,26 @@ function getGroupSiblings(item) {
   return sibs.length > 1 ? sibs : null;
 }
 
+// Pick the board-card visual target. ONLY context.target === 'mobile' gets the
+// phone-shaped card; tablet / desktop / responsive all use the landscape card
+// so they render at their native 1280×800 proportions instead of being squeezed
+// into a phone frame. Falls back to first sibling's context for paginated
+// items that don't carry context themselves.
+function getCardTarget(item) {
+  if (!item) return 'desktop';
+  const t = item.context?.target;
+  if (t) return t === 'mobile' ? 'mobile' : 'desktop';
+  if (item.groupId) {
+    const lead = items.find((x) => x.groupId === item.groupId && x.context?.target);
+    if (lead) return lead.context.target === 'mobile' ? 'mobile' : 'desktop';
+  }
+  // No context anywhere — multi-page generations are almost always mobile apps;
+  // single-page generations are usually landing pages / desktop.
+  return item.groupId && items.some((x) => x.groupId === item.groupId && x.id !== item.id)
+    ? 'mobile'
+    : 'desktop';
+}
+
 // Click handler for the chat result tile. Opens the FIRST page of the
 // generation on the board (the current detail view), focused — user can then
 // flip pages with the prev/next arrows we already built.
@@ -269,6 +377,7 @@ function swapCardPage(currentId, nextId) {
 function buildCard(item) {
   const card = makeEl('div', 'board-card' + (item.id === activeId ? ' active' : ''));
   card.dataset.id = item.id;
+  card.dataset.target = getCardTarget(item);
 
   const siblings = getGroupSiblings(item);
 
@@ -1791,6 +1900,21 @@ function setView(view) {
   }
 }
 
+function projectIdFromPath() {
+  const m = location.pathname.match(/^\/p\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function projectPath(id) {
+  return '/p/' + encodeURIComponent(id);
+}
+function pushProjectUrl(id) {
+  const target = projectPath(id);
+  if (location.pathname !== target) history.pushState({ projectId: id }, '', target);
+}
+function pushHomeUrl() {
+  if (location.pathname !== '/') history.pushState({ projectId: null }, '', '/');
+}
+
 async function fetchProjects() {
   try {
     const res = await fetch('/api/projects');
@@ -2002,6 +2126,7 @@ async function openDeleteProject(p) {
 async function enterProject(id) {
   currentProjectId = id;
   localStorage.setItem(PROJECT_KEY, id);
+  pushProjectUrl(id);
   const p = projects.find((x) => x.id === id);
   projectNameEl.textContent = p ? p.name : 'Project';
   document.title = `rockdesign · ${p ? p.name : 'Project'}`;
@@ -2026,6 +2151,7 @@ async function enterProject(id) {
 function leaveProject() {
   currentProjectId = null;
   localStorage.removeItem(PROJECT_KEY);
+  pushHomeUrl();
   activeId = null;
   items = [];
   ctx = {};
@@ -2036,6 +2162,31 @@ function leaveProject() {
 
 backHomeBtn.addEventListener('click', leaveProject);
 homeNewProjectBtn.addEventListener('click', openCreateProject);
+
+// Browser back/forward: sync the view to the URL without pushing new history.
+window.addEventListener('popstate', async () => {
+  const urlId = projectIdFromPath();
+  if (urlId) {
+    if (!projects.some((p) => p.id === urlId)) await fetchProjects();
+    if (projects.some((p) => p.id === urlId)) {
+      if (urlId !== currentProjectId) await enterProject(urlId);
+      return;
+    }
+    // Unknown project — fall through to home and clean the URL.
+    history.replaceState({ projectId: null }, '', '/');
+  }
+  if (currentProjectId !== null) {
+    currentProjectId = null;
+    localStorage.removeItem(PROJECT_KEY);
+    activeId = null;
+    items = [];
+    ctx = {};
+    renderContextBar();
+    setView('home');
+    await fetchProjects();
+    renderHome();
+  }
+});
 
 /* ---------- GitHub star count (best-effort, public API) ---------- */
 async function fetchGhStars() {
@@ -2061,19 +2212,32 @@ renderContextBar();
 fetchGhStars();
 
 (async function bootstrap() {
+  // Show home immediately so we never paint a blank page even if a later
+  // async step throws. enterProject() below will flip to the project view
+  // when the URL points at one.
+  setView('home');
+
   // One-time migration: remove the old global ctx key — it was leaking
   // preferences (e.g. "Mobile / Liquid glass") across unrelated projects.
   // Per-project keys are populated on first edit in each project; until then
   // each project shows its seeded context.
   try { localStorage.removeItem(CTX_LEGACY_KEY); } catch {}
 
-  await fetchProjects();
-  if (currentProjectId && projects.some((p) => p.id === currentProjectId)) {
-    await enterProject(currentProjectId);
-  } else {
+  try {
+    await fetchProjects();
+
+    // URL is the source of truth: /p/<id> opens that project, otherwise home.
+    const urlId = projectIdFromPath();
+    if (urlId && projects.some((p) => p.id === urlId)) {
+      await enterProject(urlId);
+      return;
+    }
+    if (urlId) history.replaceState({ projectId: null }, '', '/');
     currentProjectId = null;
     localStorage.removeItem(PROJECT_KEY);
-    setView('home');
+    renderHome();
+  } catch (err) {
+    console.error('bootstrap failed:', err);
     renderHome();
   }
 })();

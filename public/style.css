@@ -1,4 +1,5 @@
 :root {
+  --zoom: 1;
   --bg: #F4F0E6;
   --panel: #FFFFFF;
   --panel-2: #FBFAF6;
@@ -37,6 +38,14 @@ html, body {
   gap: 12px;
   padding: 12px;
 }
+.shell.chat-collapsed {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.shell.chat-collapsed > .chat {
+  display: none;
+}
+.shell:not(.chat-collapsed) #expandChat { display: none; }
 
 /* ---------- Chat panel ---------- */
 .chat {
@@ -509,7 +518,33 @@ html, body {
   gap: 12px;
   min-height: 48px;
 }
-.canvas-tools { display: flex; gap: 6px; flex-shrink: 0; }
+.canvas-tools { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+.zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--hair);
+  background: var(--panel-2);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-right: 4px;
+}
+.zoom-controls .ghost-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 8px;
+}
+.zoom-controls .ghost-btn + .ghost-btn {
+  border-left: 1px solid var(--hair);
+}
+.zoom-controls .ghost-btn:hover { background: var(--chip); }
+.zoom-level {
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  min-width: 44px;
+  text-align: center;
+  font-weight: 500;
+}
 .ghost-btn {
   appearance: none;
   border: 1px solid var(--hair);
@@ -641,12 +676,16 @@ html, body {
   background:
     radial-gradient(circle at 1px 1px, rgba(31,29,26,0.06) 1px, transparent 0) 0 0 / 18px 18px,
     var(--bg);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
-  padding: 20px;
+  overflow: hidden;
+  padding: 0;
   min-height: 0;
+  cursor: grab;
+}
+.board.panning { cursor: grabbing; user-select: none; }
+.board.panning iframe { pointer-events: none; }
+.board-row {
+  transform-origin: 0 0;
+  will-change: transform;
 }
 .board::-webkit-scrollbar { height: 10px; }
 .board::-webkit-scrollbar-track { background: transparent; }
@@ -655,9 +694,7 @@ html, body {
 .board-row {
   display: inline-flex;
   gap: 20px;
-  align-items: stretch;
-  height: 100%;
-  min-height: 100%;
+  align-items: flex-start;
   padding-right: 20px;
 }
 .board-empty {
@@ -689,17 +726,20 @@ html, body {
 
 .board-card {
   flex: 0 0 auto;
-  width: 520px;
+  width: calc(320px * var(--zoom));
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--hair);
-  border-radius: 16px;
+  border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 1px 0 rgba(31,29,26,0.04), 0 14px 32px -18px rgba(31,29,26,0.18);
   scroll-snap-align: start;
-  transition: transform 180ms, box-shadow 180ms, border-color 180ms;
-  height: 100%;
+  transition: box-shadow 180ms, border-color 180ms;
+}
+.board-card[data-target="desktop"] {
+  width: calc(520px * var(--zoom));
+  border-radius: 16px;
 }
 .board-card:hover {
   transform: translateY(-2px);
@@ -752,20 +792,28 @@ html, body {
 .card-close:hover { background: var(--hair-2); color: var(--ink); }
 
 .card-frame {
-  flex: 1;
+  flex: 0 0 auto;
   position: relative;
   background: #fff;
   overflow: hidden;
   cursor: zoom-in;
-  min-height: 0;
+  aspect-ratio: 390 / 844;
 }
 .card-frame iframe {
-  width: 1280px;
-  height: 800px;
+  width: 390px;
+  height: 844px;
   border: none;
-  transform: scale(0.406); /* ≈ 520/1280 */
+  transform: scale(calc(0.821 * var(--zoom))); /* base 320/390, scaled by zoom */
   transform-origin: top left;
   pointer-events: none;
+}
+.board-card[data-target="desktop"] .card-frame {
+  aspect-ratio: 1280 / 800;
+}
+.board-card[data-target="desktop"] .card-frame iframe {
+  width: 1280px;
+  height: 800px;
+  transform: scale(calc(0.406 * var(--zoom))); /* base 520/1280, scaled by zoom */
 }
 .card-frame::after {
   content: "";

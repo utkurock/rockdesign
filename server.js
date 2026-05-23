@@ -120,6 +120,12 @@ app.use('/api', (req, res, next) => {
 
 app.use(express.static(PUBLIC_DIR));
 
+// Client-side router: any /p/<id> URL serves index.html so direct loads and
+// browser refresh resolve to the SPA, which then routes to the project.
+app.get('/p/:id', (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
+
 // JSON-only error handler for /api/* routes (avoids HTML default error page
 // breaking the client JSON parser when payload too large, etc.)
 app.use('/api', (err, _req, res, _next) => {
