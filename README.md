@@ -27,6 +27,9 @@ guided by an opinionated, editable design system.**
 
 - **Chat-style prompt** for new designs ("a settings page for a calendar app",
   "pricing section in a brutalist style", etc.).
+- **Model picker** in the UI — pick **Sonnet** for fast iterations (default) or
+  **Opus** when you want the best quality. Opus automatically falls back to
+  Sonnet if it's unavailable.
 - **Context controls** for project type, target platform (mobile / tablet /
   desktop / responsive), and style direction (liquid glass / minimal /
   brutalist / editorial).
@@ -90,14 +93,48 @@ Chrome).
 
 ## Install & run
 
+### 1. Verify prerequisites
+
 ```bash
+node --version    # v18+
+claude --version  # Claude Code CLI
+```
+
+If either is missing, install [Node 18+](https://nodejs.org/) and the
+[Claude Code CLI](https://docs.claude.com/claude-code) first.
+
+### 2. Clone & install
+
+```bash
+git clone https://github.com/utkurock/rockdesign.git
+cd rockdesign
 npm install
+```
+
+### 3. Authenticate Claude Code
+
+```bash
+claude  # one-time login, then exit
+```
+
+rockdesign shells out to the `claude` CLI for every generation, so it has to be
+logged in on your machine.
+
+### 4. Start the server
+
+```bash
 npm start
 # → rockdesign ready → http://localhost:4173
 ```
 
-Open <http://localhost:4173> and start prompting. Override the port with
-`PORT=5000 npm start`.
+Override the port with `PORT=5000 npm start`.
+
+### 5. Open the app
+
+Visit <http://localhost:4173>. Three sample projects (Quill, Mira, Meridian)
+are seeded on first boot so there's something to look at before you generate
+anything yourself. Use the model dropdown in the chat to switch between
+**Sonnet** (fast, default) and **Opus** (higher quality).
 
 ## Project layout
 
