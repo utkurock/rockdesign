@@ -19,6 +19,17 @@
       "files": [
         { "file": "mira.html", "pageLabel": "Landing", "pageIndex": 0 }
       ]
+    },
+    {
+      "id": "meridian",
+      "name": "Meridian — News for clear thinkers",
+      "prompt": "Build a 3-page news app website. Theme: blue and white, modern and clean. Pages: home feed, article detail, and a categories browser.",
+      "context": { "projectType": "web", "target": "responsive", "style": "minimal" },
+      "files": [
+        { "file": "meridian__p01-home.html",       "pageLabel": "Home feed",       "pageIndex": 0 },
+        { "file": "meridian__p02-article.html",    "pageLabel": "Article",         "pageIndex": 1 },
+        { "file": "meridian__p03-categories.html", "pageLabel": "Categories",      "pageIndex": 2 }
+      ]
     }
   ]
 }

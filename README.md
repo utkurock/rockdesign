@@ -15,8 +15,9 @@ guided by an opinionated, editable design system.**
 
 <br />
 
-<!-- Drop a screenshot at docs/screenshot.png to replace this placeholder -->
-<sub><i>Screenshot coming soon — save the UI as <code>docs/screenshot.png</code>.</i></sub>
+![rockdesign UI showing a 3-screen mobile design (Quill habit tracker) with the chat on the left and pages on the board](docs/hero-quill.png)
+
+<sub>Quill — one of the bundled examples. Chat on the left, all generated pages on the board.</sub>
 
 </div>
 
@@ -39,6 +40,27 @@ guided by an opinionated, editable design system.**
 - **PNG export** via headless Chrome / Chromium, with adjustable viewport.
 - **Persistent gallery** of past generations, stored in `db.json`, browsable
   and re-openable.
+
+## What it produces
+
+Every generation is a complete, self-contained HTML page you can open in any
+browser. Two of the bundled examples, side by side:
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img alt="Mira landing page — editorial AI image studio" src="docs/lightbox-mira.png" />
+      <p align="center"><sub><b>Mira</b> · marketing landing, editorial style</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img alt="Meridian article page — news app, blue & white theme" src="docs/article-meridian.png" />
+      <p align="center"><sub><b>Meridian</b> · news app article, minimal web</sub></p>
+    </td>
+  </tr>
+</table>
+
+Three sample projects (Quill, Mira, Meridian) are seeded on first boot so
+there's something to look at before you generate anything yourself.
 
 ## How it works
 

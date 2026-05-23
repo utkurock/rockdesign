@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Categories — Meridian</title>
+  <style>
+    :root {
+      --bg: #F6F8FC;
+      --surface: #FFFFFF;
+      --surface-2: #F1F5F9;
+      --ink: #0B1220;
+      --ink-2: #334155;
+      --ink-dim: #64748B;
+      --accent: #2563EB;
+      --accent-2: #1D4ED8;
+      --accent-soft: rgba(37, 99, 235, 0.10);
+      --hairline: rgba(11, 18, 32, 0.08);
+      --hairline-strong: rgba(11, 18, 32, 0.14);
+      --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.04);
+      --shadow-card-hover: 0 14px 36px -18px rgba(11, 18, 32, 0.20);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--ink);
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      font-size: 16px; line-height: 1.55; min-height: 100vh;
+      animation: pageIn 260ms cubic-bezier(.2,.7,.2,1) both;
+    }
+    @keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { body, .panel { animation: none !important; } * { transition: none !important; animation: none !important; } }
+    img { display: block; max-width: 100%; height: auto; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+
+    .t-display { font-weight: 700; font-size: 52px; line-height: 1.02; letter-spacing: -0.022em; }
+    .t-title { font-weight: 700; font-size: 32px; line-height: 1.1; letter-spacing: -0.015em; }
+    .t-section { font-weight: 600; font-size: 22px; line-height: 1.25; letter-spacing: -0.01em; }
+    .t-body { font-weight: 400; font-size: 16px; line-height: 1.6; }
+    .t-caption { font-weight: 400; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
+    .t-eyebrow { font-weight: 600; font-size: 11px; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+    .t-tab { font-weight: 500; font-size: 14px; line-height: 1.0; }
+
+    .container { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+    /* HEADER */
+    .site-header { position: sticky; top: 0; z-index: 10; background: rgba(246, 248, 252, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--hairline); }
+    .site-header__inner { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+    .logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 700; letter-spacing: -0.01em; font-size: 19px; }
+    .logo svg { color: var(--accent); flex-shrink: 0; }
+    .nav { display: flex; align-items: center; gap: 32px; }
+    .nav a { color: var(--ink-2); font-weight: 500; font-size: 14px; padding: 8px 0; position: relative; transition: color 180ms cubic-bezier(.2,.7,.2,1); }
+    .nav a:hover { color: var(--ink); }
+    .nav a.active { color: var(--ink); }
+    .nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: var(--accent); border-radius: 2px; }
+    .nav a:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 4px; border-radius: 4px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; padding: 0 16px; height: 40px; font-weight: 500; font-size: 14px; border: 1px solid transparent; transition: all 180ms cubic-bezier(.2,.7,.2,1); cursor: pointer; white-space: nowrap; }
+    .btn--primary { background: var(--accent); color: white; }
+    .btn--primary:hover { background: var(--accent-2); transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(37, 99, 235, 0.5); }
+    .btn--secondary { background: var(--surface); color: var(--ink-2); border-color: var(--hairline-strong); }
+    .btn--secondary:hover { background: var(--surface-2); color: var(--ink); }
+    .btn:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+    .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); color: var(--ink-2); border: 1px solid var(--hairline); transition: all 180ms cubic-bezier(.2,.7,.2,1); }
+    .icon-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+    .icon-btn:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+
+    /* PAGE INTRO */
+    .page-intro { padding: 64px 0 32px; border-bottom: 1px solid var(--hairline); }
+    .page-intro .t-eyebrow { color: var(--accent); display: block; margin-bottom: 12px; }
+    .page-intro h1 { margin-bottom: 16px; }
+    .page-intro p { font-size: 18px; color: var(--ink-2); max-width: 640px; line-height: 1.55; }
+
+    /* TABS */
+    .tabs-wrapper { position: sticky; top: 72px; z-index: 9; background: rgba(246, 248, 252, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--hairline); }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 12px 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink-2);
+      border: 1px solid var(--hairline);
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 180ms cubic-bezier(.2,.7,.2,1);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tab:hover { background: var(--surface); color: var(--ink); border-color: var(--hairline-strong); }
+    .tab:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+    .tab[aria-selected="true"] { background: var(--ink); color: white; border-color: var(--ink); }
+    .tab[aria-selected="true"]:hover { background: var(--ink); color: white; }
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--ink-dim);
+      font-size: 11px;
+      font-weight: 600;
+      font-feature-settings: 'tnum' 1;
+    }
+    .tab[aria-selected="true"] .tab-count { background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.9); }
+
+    /* PANELS */
+    .section { padding: 48px 0 64px; }
+    .panel { display: none; animation: fadeUp 260ms cubic-bezier(.2,.7,.2,1) both; }
+    .panel.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--hairline);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .panel-header__title { display: flex; flex-direction: column; gap: 8px; }
+    .panel-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--ink-dim);
+    }
+    .sort-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--hairline-strong);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-2);
+      cursor: pointer;
+      transition: all 180ms;
+    }
+    .sort-select:hover { background: var(--surface-2); color: var(--ink); }
+
+    /* GRID */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px 24px; }
+    .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; transition: transform 260ms cubic-bezier(.2,.7,.2,1), box-shadow 260ms, border-color 260ms; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--hairline-strong); }
+    .card > a { display: contents; }
+    .card-image { aspect-ratio: 16 / 10; background: var(--surface-2); overflow: hidden; }
+    .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.7,.2,1); }
+    .card:hover .card-image img { transform: scale(1.04); }
+    .card-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .card-cat { color: var(--accent); }
+    .card-title { font-weight: 700; font-size: 19px; line-height: 1.3; letter-spacing: -0.01em; color: var(--ink); transition: color 180ms; }
+    .card:hover .card-title { color: var(--accent); }
+    .card-summary { font-size: 14px; line-height: 1.5; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-dim); }
+    .card:focus-within { outline: 3px solid var(--accent-soft); outline-offset: 2px; border-radius: 16px; }
+
+    /* FOOTER */
+    .site-footer { margin-top: 24px; padding: 48px 0; border-top: 1px solid var(--hairline); background: var(--surface); }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
+    .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+    .footer-links a { font-size: 13px; color: var(--ink-dim); transition: color 180ms; }
+    .footer-links a:hover { color: var(--ink); }
+    .copyright { font-size: 12px; color: var(--ink-dim); }
+
+    @media (max-width: 900px) {
+      .container { padding: 0 20px; }
+      .nav { gap: 20px; }
+      .nav a { font-size: 13px; }
+      .page-intro { padding: 40px 0 24px; }
+      .t-display { font-size: 36px; }
+      .grid { grid-template-columns: 1fr; gap: 24px; }
+      .tabs-wrapper { top: 72px; }
+    }
+    @media (max-width: 640px) {
+      .nav { display: none; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html" aria-label="Meridian, home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.75"/>
+          <path d="M2 12h20M12 2c2.8 3 2.8 17 0 20M12 2c-2.8 3-2.8 17 0 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+        </svg>
+        <span>Meridian</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html">Home</a>
+        <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p03-categories.html" class="active">Categories</a>
+        <a href="#newsletter">Newsletter</a>
+        <a href="#about">About</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        </button>
+        <a class="btn btn--primary" href="#subscribe">Subscribe</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-intro">
+      <div class="container">
+        <span class="t-eyebrow">Browse</span>
+        <h1 class="t-display">Stories by category</h1>
+        <p>Four desks, one newsroom. Pick a section and we'll show you the most-read pieces from this week.</p>
+      </div>
+    </section>
+
+    <div class="tabs-wrapper">
+      <div class="container">
+        <div class="tabs" role="tablist" aria-label="News categories">
+          <button class="tab" role="tab" aria-selected="true" aria-controls="panel-top" id="tab-top" data-tab="top">Top Stories <span class="tab-count">24</span></button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-sports" id="tab-sports" data-tab="sports">Sports <span class="tab-count">18</span></button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-tech" id="tab-tech" data-tab="tech">Tech <span class="tab-count">31</span></button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-business" id="tab-business" data-tab="business">Business <span class="tab-count">22</span></button>
+        </div>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container">
+        <!-- TOP STORIES -->
+        <div class="panel active" id="panel-top" role="tabpanel" aria-labelledby="tab-top">
+          <div class="panel-header">
+            <div class="panel-header__title">
+              <span class="t-eyebrow" style="color: var(--accent);">Top Stories</span>
+              <h2 class="t-title">What everyone is reading today</h2>
+              <span class="panel-meta">24 stories · Updated 14 minutes ago</span>
+            </div>
+            <button class="sort-select" aria-label="Sort">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><polyline points="3 12 5 12 13 12"/><polyline points="3 18 5 18 11 18"/></svg>
+              Most read
+            </button>
+          </div>
+          <div class="grid">
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/meridian-capitol/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Politics</span><h3 class="card-title">Senate passes landmark AI safety bill in 72–34 vote</h3><p class="card-summary">After three days of debate, lawmakers approved sweeping regulations on frontier model deployment.</p><div class="card-foot"><span>Elena Marquez</span><span>May 23</span></div></div></a></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/markets-eu/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Business</span><h3 class="card-title">European markets close higher as core inflation cools to 1.8%</h3><p class="card-summary">The Stoxx 600 added 0.6% after fresh data showed price pressures easing across the eurozone.</p><div class="card-foot"><span>Marcus Reinholt</span><span>May 23</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/quantum-chip/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Technology</span><h3 class="card-title">Quantum chip startup Lumen raises $480M Series C at $4.2B valuation</h3><p class="card-summary">The Palo Alto company says it will scale a 1,024-qubit photonic processor and open a Singapore fab.</p><div class="card-foot"><span>Aisha Okonkwo</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/sports-hawks/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Sports</span><h3 class="card-title">Underdog Hawks pull off Game 7 upset to reach conference finals</h3><p class="card-summary">A 14-point fourth-quarter run sealed it. Atlanta now faces a Boston team unbeaten at home in 18 months.</p><div class="card-foot"><span>Jordan Reyes</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/rail-line/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Infrastructure</span><h3 class="card-title">City breaks ground on first all-electric high-speed rail line</h3><p class="card-summary">The 312-mile corridor is expected to cut travel time between the two metros by more than half.</p><div class="card-foot"><span>David Park</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/science-bio/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Science</span><h3 class="card-title">Researchers identify new biomarker for early Alzheimer's detection</h3><p class="card-summary">A blood test for plasma p-tau231 predicted disease progression a decade earlier than current methods.</p><div class="card-foot"><span>Dr. Wei Zhang</span><span>May 21</span></div></a></div></article>
+          </div>
+        </div>
+
+        <!-- SPORTS -->
+        <div class="panel" id="panel-sports" role="tabpanel" aria-labelledby="tab-sports" hidden>
+          <div class="panel-header">
+            <div class="panel-header__title">
+              <span class="t-eyebrow" style="color: var(--accent);">Sports</span>
+              <h2 class="t-title">From the field, court, and pitch</h2>
+              <span class="panel-meta">18 stories · Live scores updated every 30s</span>
+            </div>
+            <button class="sort-select" aria-label="Sort">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><polyline points="3 12 5 12 13 12"/><polyline points="3 18 5 18 11 18"/></svg>
+              Latest first
+            </button>
+          </div>
+          <div class="grid">
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/sports-hawks/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Basketball</span><h3 class="card-title">Underdog Hawks pull off Game 7 upset to reach conference finals</h3><p class="card-summary">A 14-point fourth-quarter run sealed it. Atlanta now faces a Boston team unbeaten at home in 18 months.</p><div class="card-foot"><span>Jordan Reyes</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/soccer-final/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Soccer</span><h3 class="card-title">Late penalty seals Champions League final for Real Madrid</h3><p class="card-summary">Mbappé converted in the 89th minute to deliver a 2–1 win and Madrid's 16th European Cup.</p><div class="card-foot"><span>Lucia Hernandez</span><span>May 23</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/f1-monaco/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Motorsport</span><h3 class="card-title">Verstappen takes pole at Monaco after disrupted qualifying</h3><p class="card-summary">A red flag with three minutes left rewrote the grid. Norris will start second, Leclerc third.</p><div class="card-foot"><span>Tom Walker</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/tennis-roland/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Tennis</span><h3 class="card-title">Świątek into French Open quarters in straight sets</h3><p class="card-summary">The four-time champion dropped just three games en route to the last eight at Roland-Garros.</p><div class="card-foot"><span>Anna Petrov</span><span>May 21</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/nfl-draft/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Football</span><h3 class="card-title">Bears trade up to grab quarterback prospect Caleb Reed</h3><p class="card-summary">Chicago sent two firsts and a third to move up to pick four. Reed signs his rookie deal Friday.</p><div class="card-foot"><span>Mike Thompson</span><span>May 20</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/olympics-prep/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Olympics</span><h3 class="card-title">LA28 venues hit 80% completion ahead of 2027 test events</h3><p class="card-summary">The organizing committee says construction is on schedule despite supply chain issues last summer.</p><div class="card-foot"><span>Sarah Kim</span><span>May 19</span></div></a></div></article>
+          </div>
+        </div>
+
+        <!-- TECH -->
+        <div class="panel" id="panel-tech" role="tabpanel" aria-labelledby="tab-tech" hidden>
+          <div class="panel-header">
+            <div class="panel-header__title">
+              <span class="t-eyebrow" style="color: var(--accent);">Tech</span>
+              <h2 class="t-title">Hardware, software, and the people behind both</h2>
+              <span class="panel-meta">31 stories · Refreshed every hour</span>
+            </div>
+            <button class="sort-select" aria-label="Sort">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><polyline points="3 12 5 12 13 12"/><polyline points="3 18 5 18 11 18"/></svg>
+              Most read
+            </button>
+          </div>
+          <div class="grid">
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/quantum-chip/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Hardware</span><h3 class="card-title">Quantum chip startup Lumen raises $480M Series C at $4.2B valuation</h3><p class="card-summary">The Palo Alto company says it will scale a 1,024-qubit photonic processor and open a Singapore fab.</p><div class="card-foot"><span>Aisha Okonkwo</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/ai-eval/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">AI</span><h3 class="card-title">New open evaluation suite for frontier reasoning launches</h3><p class="card-summary">Anthropic and DeepMind backed the consortium effort; results from five labs published this morning.</p><div class="card-foot"><span>Priya Anand</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/satellite-launch/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Space</span><h3 class="card-title">SpaceX launches 60th Starlink mission of the year</h3><p class="card-summary">The Falcon 9 booster landed for a record 24th time, putting another 23 satellites into low orbit.</p><div class="card-foot"><span>Carlos Mendez</span><span>May 21</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/cyber-breach/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Security</span><h3 class="card-title">Ransomware crew claims breach of major hotel chain — chain denies it</h3><p class="card-summary">Listings posted to the gang's dark web site claim 280GB of guest records. The company says it found no evidence.</p><div class="card-foot"><span>Riya Sharma</span><span>May 21</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/foldable-phone/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Consumer</span><h3 class="card-title">First look: Pixel Fold Slim shaves 3mm and adds a real cover screen</h3><p class="card-summary">Google's third-generation foldable feels closer to a normal phone than anything Samsung has shipped yet.</p><div class="card-foot"><span>James Liu</span><span>May 20</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/dev-tools/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Software</span><h3 class="card-title">Vercel acquires Rust toolchain maker Turborepo's parent</h3><p class="card-summary">The deal, valued around $90M, brings the entire monorepo team in-house and extends Vercel's reach into native builds.</p><div class="card-foot"><span>Sam Chen</span><span>May 19</span></div></a></div></article>
+          </div>
+        </div>
+
+        <!-- BUSINESS -->
+        <div class="panel" id="panel-business" role="tabpanel" aria-labelledby="tab-business" hidden>
+          <div class="panel-header">
+            <div class="panel-header__title">
+              <span class="t-eyebrow" style="color: var(--accent);">Business</span>
+              <h2 class="t-title">Markets, deals, and the macro view</h2>
+              <span class="panel-meta">22 stories · Live quotes on the homepage</span>
+            </div>
+            <button class="sort-select" aria-label="Sort">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><polyline points="3 12 5 12 13 12"/><polyline points="3 18 5 18 11 18"/></svg>
+              Most read
+            </button>
+          </div>
+          <div class="grid">
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/markets-eu/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Markets</span><h3 class="card-title">European markets close higher as core inflation cools to 1.8%</h3><p class="card-summary">The Stoxx 600 added 0.6% after fresh data showed price pressures easing across the eurozone.</p><div class="card-foot"><span>Marcus Reinholt</span><span>May 23</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/ipo-roadshow/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">IPO</span><h3 class="card-title">Stripe sets IPO range at $98–$112, valuation could top $190B</h3><p class="card-summary">The pricing comes after the company tripled its serverless revenue in 2025. Listing expected June 6.</p><div class="card-foot"><span>Robert Chang</span><span>May 23</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/oil-prices/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Commodities</span><h3 class="card-title">Crude slides below $74 on demand worries</h3><p class="card-summary">A surprise build in U.S. inventories drove Brent crude down 2.3% on the week despite OPEC+ rhetoric.</p><div class="card-foot"><span>Yuki Tanaka</span><span>May 22</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/retail-earnings/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Earnings</span><h3 class="card-title">Target beats on margins despite flat traffic, raises guidance</h3><p class="card-summary">Private label and same-day pickup carried the quarter. Shares jumped 7% in premarket trading.</p><div class="card-foot"><span>Hannah Wilson</span><span>May 21</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/fed-reserve/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">Macro</span><h3 class="card-title">Fed minutes suggest a divided committee on the timing of the next cut</h3><p class="card-summary">Several officials want more progress on services inflation before easing further. Two preferred to hold.</p><div class="card-foot"><span>Daniel Brooks</span><span>May 21</span></div></a></div></article>
+            <article class="card"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html"><div class="card-image"><img src="https://picsum.photos/seed/ma-deal/800/500" alt=""></div><div class="card-body"><span class="t-eyebrow card-cat">M&A</span><h3 class="card-title">Cigna in talks to acquire HumanaCare for $34B in cash and stock</h3><p class="card-summary">A deal would create the largest U.S. Medicare Advantage insurer. Regulators are expected to scrutinize closely.</p><div class="card-foot"><span>Olivia Tran</span><span>May 20</span></div></a></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <a class="logo" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.75"/>
+            <path d="M2 12h20M12 2c2.8 3 2.8 17 0 20M12 2c-2.8 3-2.8 17 0 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+          </svg>
+          <span style="font-size: 16px;">Meridian</span>
+        </a>
+        <span class="copyright">© 2026 Meridian Media Co.</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#">About</a>
+        <a href="#">Newsroom</a>
+        <a href="#">Ethics</a>
+        <a href="#">Contact</a>
+        <a href="#">Privacy</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      var tabs = document.querySelectorAll('.tab');
+      var panels = document.querySelectorAll('.panel');
+
+      function activate(name) {
+        tabs.forEach(function(t) {
+          var isActive = t.dataset.tab === name;
+          t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        panels.forEach(function(p) {
+          var isActive = p.id === 'panel-' + name;
+          p.classList.toggle('active', isActive);
+          if (isActive) { p.removeAttribute('hidden'); }
+          else { p.setAttribute('hidden', ''); }
+        });
+      }
+
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() { activate(tab.dataset.tab); });
+        tab.addEventListener('keydown', function(e) {
+          var list = Array.from(tabs);
+          var idx = list.indexOf(tab);
+          if (e.key === 'ArrowRight') { e.preventDefault(); var n = list[(idx + 1) % list.length]; n.focus(); activate(n.dataset.tab); }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); var p = list[(idx - 1 + list.length) % list.length]; p.focus(); activate(p.dataset.tab); }
+          if (e.key === 'Home') { e.preventDefault(); list[0].focus(); activate(list[0].dataset.tab); }
+          if (e.key === 'End') { e.preventDefault(); list[list.length-1].focus(); activate(list[list.length-1].dataset.tab); }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

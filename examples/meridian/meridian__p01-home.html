@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meridian — News for clear thinkers</title>
+  <style>
+    :root {
+      --bg: #F6F8FC;
+      --surface: #FFFFFF;
+      --surface-2: #F1F5F9;
+      --ink: #0B1220;
+      --ink-2: #334155;
+      --ink-dim: #64748B;
+      --accent: #2563EB;
+      --accent-2: #1D4ED8;
+      --accent-soft: rgba(37, 99, 235, 0.10);
+      --accent-softer: rgba(37, 99, 235, 0.06);
+      --hairline: rgba(11, 18, 32, 0.08);
+      --hairline-strong: rgba(11, 18, 32, 0.14);
+      --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.04);
+      --shadow-card-hover: 0 14px 36px -18px rgba(11, 18, 32, 0.20);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--ink);
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      font-size: 16px; line-height: 1.55; min-height: 100vh;
+      animation: pageIn 260ms cubic-bezier(.2,.7,.2,1) both;
+    }
+    @keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { body { animation: none; } * { transition: none !important; animation: none !important; } }
+    img { display: block; max-width: 100%; height: auto; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+
+    /* TYPE ROLES */
+    .t-display { font-weight: 700; font-size: 52px; line-height: 1.02; letter-spacing: -0.022em; }
+    .t-title { font-weight: 700; font-size: 32px; line-height: 1.1; letter-spacing: -0.015em; }
+    .t-section { font-weight: 600; font-size: 22px; line-height: 1.25; letter-spacing: -0.01em; }
+    .t-body { font-weight: 400; font-size: 16px; line-height: 1.6; }
+    .t-caption { font-weight: 400; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
+    .t-label { font-weight: 500; font-size: 13px; line-height: 1.2; }
+    .t-eyebrow { font-weight: 600; font-size: 11px; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+    .t-tab { font-weight: 500; font-size: 14px; line-height: 1.0; }
+
+    .container { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+    /* HEADER */
+    .site-header { position: sticky; top: 0; z-index: 10; background: rgba(246, 248, 252, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--hairline); }
+    .site-header__inner { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+    .logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 700; letter-spacing: -0.01em; font-size: 19px; }
+    .logo svg { color: var(--accent); flex-shrink: 0; }
+    .nav { display: flex; align-items: center; gap: 32px; }
+    .nav a { color: var(--ink-2); font-weight: 500; font-size: 14px; padding: 8px 0; position: relative; transition: color 180ms cubic-bezier(.2,.7,.2,1); }
+    .nav a:hover { color: var(--ink); }
+    .nav a.active { color: var(--ink); }
+    .nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: var(--accent); border-radius: 2px; }
+    .nav a:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 4px; border-radius: 4px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; padding: 0 16px; height: 40px; font-weight: 500; font-size: 14px; border: 1px solid transparent; transition: all 180ms cubic-bezier(.2,.7,.2,1); cursor: pointer; white-space: nowrap; }
+    .btn--primary { background: var(--accent); color: white; }
+    .btn--primary:hover { background: var(--accent-2); transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(37, 99, 235, 0.5); }
+    .btn--primary:active { transform: translateY(0); }
+    .btn--secondary { background: var(--surface); color: var(--ink-2); border-color: var(--hairline-strong); }
+    .btn--secondary:hover { background: var(--surface-2); color: var(--ink); }
+    .btn:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+    .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); color: var(--ink-2); border: 1px solid var(--hairline); transition: all 180ms cubic-bezier(.2,.7,.2,1); }
+    .icon-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+    .icon-btn:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+
+    /* HERO */
+    .hero { padding: 56px 0 40px; border-bottom: 1px solid var(--hairline); }
+    .hero-meta-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .live-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .hero-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 48px; align-items: center; }
+    .hero-image { position: relative; display: block; border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 11; background: linear-gradient(135deg, #DBEAFE, #93C5FD); }
+    .hero-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 600ms cubic-bezier(.2,.7,.2,1); }
+    .hero-image:hover img { transform: scale(1.03); }
+    .hero-image::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px var(--hairline); border-radius: 16px; pointer-events: none; }
+    .hero-content .t-eyebrow { color: var(--accent); margin-bottom: 16px; display: block; }
+    .hero-content h1 { margin-bottom: 20px; }
+    .hero-content h1 a { color: var(--ink); transition: color 180ms; }
+    .hero-content h1 a:hover { color: var(--accent); }
+    .hero-summary { color: var(--ink-2); font-size: 17px; line-height: 1.6; margin-bottom: 28px; }
+    .byline { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #2563EB, #60A5FA); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; flex-shrink: 0; }
+    .byline-text { display: flex; flex-direction: column; gap: 2px; }
+    .byline-text .author { font-weight: 600; font-size: 14px; color: var(--ink); }
+    .byline-text .meta { font-size: 12px; color: var(--ink-dim); }
+
+    /* SECTION */
+    .section { padding: 64px 0; }
+    .section-header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--hairline); gap: 24px; flex-wrap: wrap; }
+    .section-header__title { display: flex; flex-direction: column; gap: 8px; }
+    .section-header a { font-size: 14px; font-weight: 500; color: var(--accent); display: inline-flex; align-items: center; gap: 4px; transition: gap 180ms cubic-bezier(.2,.7,.2,1); }
+    .section-header a:hover { gap: 8px; }
+    .section-header a:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 4px; border-radius: 4px; }
+
+    /* CARD GRID */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px 24px; }
+    .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; transition: transform 260ms cubic-bezier(.2,.7,.2,1), box-shadow 260ms, border-color 260ms; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--hairline-strong); }
+    .card > a { display: contents; }
+    .card-image { aspect-ratio: 16 / 10; background: var(--surface-2); overflow: hidden; }
+    .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.7,.2,1); }
+    .card:hover .card-image img { transform: scale(1.04); }
+    .card-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .card-cat { color: var(--accent); }
+    .card-title { font-weight: 700; font-size: 19px; line-height: 1.3; letter-spacing: -0.01em; color: var(--ink); transition: color 180ms; }
+    .card:hover .card-title { color: var(--accent); }
+    .card-summary { font-size: 14px; line-height: 1.5; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-dim); }
+    .card:focus-within { outline: 3px solid var(--accent-soft); outline-offset: 2px; border-radius: 16px; }
+
+    /* TWO COL */
+    .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 48px; }
+    .sidelist { display: flex; flex-direction: column; }
+    .sidelist-card { display: flex; gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--hairline); align-items: flex-start; }
+    .sidelist-card:first-child { padding-top: 0; }
+    .sidelist-card:last-child { border-bottom: none; }
+    .sidelist-num { flex-shrink: 0; width: 32px; font-weight: 700; font-size: 22px; color: var(--accent); letter-spacing: -0.02em; font-feature-settings: 'tnum' 1; }
+    .sidelist-body { display: flex; flex-direction: column; gap: 6px; }
+    .sidelist-cat { color: var(--accent); }
+    .sidelist-title { font-weight: 600; font-size: 15px; line-height: 1.35; color: var(--ink); transition: color 180ms; }
+    .sidelist-card:hover .sidelist-title { color: var(--accent); }
+    .sidelist-meta { font-size: 12px; color: var(--ink-dim); }
+    .sidelist-card:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 4px; border-radius: 4px; }
+
+    .news-card-aside { background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px; padding: 28px; height: fit-content; position: sticky; top: 96px; }
+    .news-card-aside .t-eyebrow { color: var(--accent); display: block; }
+    .news-card-aside h3 { margin: 12px 0 8px; }
+    .news-card-aside p { color: var(--ink-2); font-size: 14px; margin-bottom: 20px; line-height: 1.55; }
+    .input-row { display: flex; gap: 8px; }
+    .input { flex: 1; padding: 10px 12px; border: 1px solid var(--hairline-strong); background: var(--surface-2); border-radius: 12px; font-size: 14px; font-family: inherit; color: var(--ink); outline: none; transition: border-color 180ms, box-shadow 180ms; }
+    .input::placeholder { color: var(--ink-dim); }
+    .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    /* FOOTER */
+    .site-footer { margin-top: 80px; padding: 48px 0; border-top: 1px solid var(--hairline); background: var(--surface); }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
+    .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+    .footer-links a { font-size: 13px; color: var(--ink-dim); transition: color 180ms; }
+    .footer-links a:hover { color: var(--ink); }
+    .copyright { font-size: 12px; color: var(--ink-dim); }
+
+    @media (max-width: 900px) {
+      .container { padding: 0 20px; }
+      .nav { gap: 20px; }
+      .nav a { font-size: 13px; }
+      .hero { padding: 32px 0 24px; }
+      .hero-grid { grid-template-columns: 1fr; gap: 24px; }
+      .t-display { font-size: 36px; }
+      .section { padding: 40px 0; }
+      .grid { grid-template-columns: 1fr; gap: 24px; }
+      .two-col { grid-template-columns: 1fr; gap: 32px; }
+      .news-card-aside { position: static; }
+    }
+    @media (max-width: 640px) {
+      .nav { display: none; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+      .header-actions .btn--primary span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html" aria-label="Meridian, home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.75"/>
+          <path d="M2 12h20M12 2c2.8 3 2.8 17 0 20M12 2c-2.8 3-2.8 17 0 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+        </svg>
+        <span>Meridian</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html" class="active">Home</a>
+        <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p03-categories.html">Categories</a>
+        <a href="#newsletter">Newsletter</a>
+        <a href="#about">About</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        </button>
+        <a class="btn btn--primary" href="#subscribe"><span>Subscribe</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-meta-row">
+          <span class="badge"><span class="live-dot" aria-hidden="true"></span>Top story</span>
+          <span class="t-caption">Updated 14 minutes ago · 4 min read</span>
+        </div>
+        <div class="hero-grid">
+          <a class="hero-image" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="Read featured article">
+            <img src="https://picsum.photos/seed/meridian-capitol/1200/825" alt="The Capitol dome at dusk">
+          </a>
+          <div class="hero-content">
+            <span class="t-eyebrow">Politics · Washington</span>
+            <h1 class="t-display"><a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">Senate passes landmark AI safety bill in 72–34 vote</a></h1>
+            <p class="hero-summary">After three days of debate, lawmakers approved sweeping regulations on frontier model deployment, including mandatory pre-release evaluations and a federal incident registry. The bill heads to the House next week.</p>
+            <div class="byline">
+              <span class="avatar" aria-hidden="true">EM</span>
+              <div class="byline-text">
+                <span class="author">Elena Marquez</span>
+                <span class="meta">Senior policy correspondent · May 23, 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-header__title">
+            <span class="t-eyebrow" style="color: var(--accent);">Latest stories</span>
+            <h2 class="t-title">Today's headlines</h2>
+          </div>
+          <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p03-categories.html">All categories →</a>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="European markets close higher">
+              <div class="card-image"><img src="https://picsum.photos/seed/markets-eu/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Business</span>
+                <h3 class="card-title">European markets close higher as core inflation cools to 1.8%</h3>
+                <p class="card-summary">The Stoxx 600 added 0.6% after fresh data showed price pressures easing across the eurozone for a fourth consecutive month.</p>
+                <div class="card-foot"><span>Marcus Reinholt</span><span>May 23</span></div>
+              </div>
+            </a>
+          </article>
+
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="Quantum chip startup Lumen raises 480M">
+              <div class="card-image"><img src="https://picsum.photos/seed/quantum-chip/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Technology</span>
+                <h3 class="card-title">Quantum chip startup Lumen raises $480M Series C at $4.2B valuation</h3>
+                <p class="card-summary">The Palo Alto company says it will use the funds to scale a 1,024-qubit photonic processor and open a Singapore fabrication site.</p>
+                <div class="card-foot"><span>Aisha Okonkwo</span><span>May 22</span></div>
+              </div>
+            </a>
+          </article>
+
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="Electric rail line breaks ground">
+              <div class="card-image"><img src="https://picsum.photos/seed/rail-line/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Infrastructure</span>
+                <h3 class="card-title">City breaks ground on first all-electric high-speed rail line</h3>
+                <p class="card-summary">The 312-mile corridor is expected to cut travel time between the two metros by more than half once service begins in 2031.</p>
+                <div class="card-foot"><span>David Park</span><span>May 22</span></div>
+              </div>
+            </a>
+          </article>
+
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="Hawks upset reaches conference finals">
+              <div class="card-image"><img src="https://picsum.photos/seed/sports-hawks/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Sports</span>
+                <h3 class="card-title">Underdog Hawks pull off Game 7 upset to reach conference finals</h3>
+                <p class="card-summary">A 14-point fourth-quarter run sealed it. Atlanta now faces a Boston team that has not lost a home playoff game in 18 months.</p>
+                <div class="card-foot"><span>Jordan Reyes</span><span>May 22</span></div>
+              </div>
+            </a>
+          </article>
+
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="New Alzheimer's biomarker discovered">
+              <div class="card-image"><img src="https://picsum.photos/seed/science-bio/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Science</span>
+                <h3 class="card-title">Researchers identify new biomarker for early Alzheimer's detection</h3>
+                <p class="card-summary">A blood test for plasma p-tau231 predicted disease progression a decade earlier than current methods in a 3,400-patient trial.</p>
+                <div class="card-foot"><span>Dr. Wei Zhang</span><span>May 21</span></div>
+              </div>
+            </a>
+          </article>
+
+          <article class="card">
+            <a href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html" aria-label="Cold Light wins Palme d'Or">
+              <div class="card-image"><img src="https://picsum.photos/seed/cannes-film/800/500" alt=""></div>
+              <div class="card-body">
+                <span class="t-eyebrow card-cat">Culture</span>
+                <h3 class="card-title">Independent film "Cold Light" takes top prize at Cannes</h3>
+                <p class="card-summary">Director Sofia Vidal's quiet meditation on memory and grief beat heavily-favored studio entries to win the Palme d'Or.</p>
+                <div class="card-foot"><span>Renata Castillo</span><span>May 21</span></div>
+              </div>
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top: 0;">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-header__title">
+            <span class="t-eyebrow" style="color: var(--accent);">Most read</span>
+            <h2 class="t-title">What readers are clicking this week</h2>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="sidelist">
+            <a class="sidelist-card" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">
+              <span class="sidelist-num">01</span>
+              <div class="sidelist-body">
+                <span class="t-eyebrow sidelist-cat">Politics</span>
+                <h3 class="sidelist-title">Senate passes landmark AI safety bill in 72–34 vote</h3>
+                <span class="sidelist-meta">May 23 · 4 min read</span>
+              </div>
+            </a>
+            <a class="sidelist-card" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">
+              <span class="sidelist-num">02</span>
+              <div class="sidelist-body">
+                <span class="t-eyebrow sidelist-cat">Technology</span>
+                <h3 class="sidelist-title">Quantum chip startup Lumen raises $480M at $4.2B valuation</h3>
+                <span class="sidelist-meta">May 22 · 5 min read</span>
+              </div>
+            </a>
+            <a class="sidelist-card" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">
+              <span class="sidelist-num">03</span>
+              <div class="sidelist-body">
+                <span class="t-eyebrow sidelist-cat">Business</span>
+                <h3 class="sidelist-title">European markets close higher as core inflation cools to 1.8%</h3>
+                <span class="sidelist-meta">May 23 · 3 min read</span>
+              </div>
+            </a>
+            <a class="sidelist-card" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">
+              <span class="sidelist-num">04</span>
+              <div class="sidelist-body">
+                <span class="t-eyebrow sidelist-cat">Science</span>
+                <h3 class="sidelist-title">New blood biomarker may detect Alzheimer's a decade earlier</h3>
+                <span class="sidelist-meta">May 21 · 6 min read</span>
+              </div>
+            </a>
+            <a class="sidelist-card" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html">
+              <span class="sidelist-num">05</span>
+              <div class="sidelist-body">
+                <span class="t-eyebrow sidelist-cat">Culture</span>
+                <h3 class="sidelist-title">"Cold Light" director Sofia Vidal on grief, memory, and silence</h3>
+                <span class="sidelist-meta">May 21 · 8 min read</span>
+              </div>
+            </a>
+          </div>
+          <aside class="news-card-aside" id="newsletter">
+            <span class="t-eyebrow">Newsletter</span>
+            <h3 class="t-section">The Morning Brief</h3>
+            <p>A 5-minute read on the stories that shape the day. Delivered at 7am, weekdays only.</p>
+            <form onsubmit="event.preventDefault(); var b=this.querySelector('button'); b.textContent='✓ Subscribed'; b.disabled=true;">
+              <div class="input-row">
+                <input class="input" type="email" placeholder="you@email.com" required aria-label="Email address">
+                <button type="submit" class="btn btn--primary">Join</button>
+              </div>
+            </form>
+            <p class="t-caption" style="margin-top: 12px; margin-bottom: 0;">No spam. Unsubscribe anytime.</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <a class="logo" href="build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.75"/>
+            <path d="M2 12h20M12 2c2.8 3 2.8 17 0 20M12 2c-2.8 3-2.8 17 0 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+          </svg>
+          <span style="font-size: 16px;">Meridian</span>
+        </a>
+        <span class="copyright">© 2026 Meridian Media Co.</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#">About</a>
+        <a href="#">Newsroom</a>
+        <a href="#">Ethics</a>
+        <a href="#">Contact</a>
+        <a href="#">Privacy</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
