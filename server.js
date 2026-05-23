@@ -20,9 +20,10 @@ const EXAMPLES_DIR = path.join(ROOT, 'examples');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 4173;
-// Multi-page mobile apps can take 3–6 minutes. Override with CLAUDE_TIMEOUT
-// (in seconds) if you want a different cap.
-const CLAUDE_TIMEOUT_MS = (parseInt(process.env.CLAUDE_TIMEOUT, 10) || 360) * 1000;
+// Multi-page mobile apps can take 3–6 minutes. Partial results stream in
+// as Claude writes each file, so a generous cap is safe. Override with
+// CLAUDE_TIMEOUT (in seconds).
+const CLAUDE_TIMEOUT_MS = (parseInt(process.env.CLAUDE_TIMEOUT, 10) || 1200) * 1000;
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const WEB_FETCH_TIMEOUT_MS = 15_000;
 const MAX_WEB_BYTES = 5 * 1024 * 1024;
@@ -1300,6 +1301,8 @@ async function runClaude(instruction) {
       '-p', instruction,
       '--output-format', 'json',
       '--allowedTools', 'Write,Read',
+      '--model', process.env.CLAUDE_MODEL || 'opus',
+      '--fallback-model', 'sonnet',
     ];
 
     const child = spawn(bin, args, {

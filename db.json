@@ -23,10 +23,10 @@
       }
     },
     {
-      "id": "test",
-      "name": "news",
-      "platform": "web",
-      "createdAt": "2026-05-23T04:53:45.969Z"
+      "id": "news",
+      "name": "News",
+      "platform": "mobile",
+      "createdAt": "2026-05-23T05:43:52.343Z"
     }
   ],
   "designs": [
@@ -106,6 +106,44 @@
         "style": "editorial"
       },
       "isExample": true
+    },
+    {
+      "id": "build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home",
+      "projectId": "news",
+      "groupId": "grp_1779515040558_uhveg",
+      "pageIndex": 0,
+      "pageCount": 2,
+      "pageLabel": "Brief — Today",
+      "prompt": "Build a 3-page news app website. Theme: blue and white, modern and clean.\nPages:\n\nHome — featured headline at the top, followed by a list of news cards (image, title, short summary, date)\nArticle detail — large image, title, full text, back button\nCategories — category tabs (Top Stories, Sports, Tech, Business) with the news list for the selected category",
+      "file": "build-a-3-page-news-app-website-theme-blue-and-white-modern__p01-home.html",
+      "createdAt": "2026-05-23T05:44:00.559Z",
+      "cost": null,
+      "sessionId": null,
+      "partial": true,
+      "attachments": [],
+      "context": {
+        "projectType": "mobile",
+        "target": "mobile",
+        "style": "minimal"
+      },
+      "partialReason": "Generation did not finish in 360s — cancelled."
+    },
+    {
+      "id": "build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article",
+      "projectId": "news",
+      "groupId": "grp_1779515040558_uhveg",
+      "pageIndex": 1,
+      "pageCount": 2,
+      "pageLabel": "Brief — Markets close at record high",
+      "prompt": "Build a 3-page news app website. Theme: blue and white, modern and clean.\nPages:\n\nHome — featured headline at the top, followed by a list of news cards (image, title, short summary, date)\nArticle detail — large image, title, full text, back button\nCategories — category tabs (Top Stories, Sports, Tech, Business) with the news list for the selected category",
+      "file": "build-a-3-page-news-app-website-theme-blue-and-white-modern__p02-article.html",
+      "createdAt": "2026-05-23T05:44:00.559Z",
+      "cost": null,
+      "sessionId": null,
+      "partial": true,
+      "attachments": [],
+      "context": null,
+      "partialReason": "Generation did not finish in 360s — cancelled."
     }
   ]
 }

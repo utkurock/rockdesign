@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>rockdesign</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -12,15 +13,12 @@
     <header class="home-head">
       <div class="brand">
         <span class="brand-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="9"/>
-            <circle cx="7.8" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
-            <circle cx="12"  cy="7.5"  r="1.2" fill="currentColor" stroke="none"/>
-            <circle cx="16.2" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
-            <circle cx="14.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 17 L4 11 L8 5 L14 4 L20 8 L21 15 L17 20 L9 19 Z"/>
           </svg>
         </span>
         <span>rockdesign</span>
+        <a class="brand-author" href="https://x.com/utkurocks" target="_blank" rel="noopener noreferrer">by @utkurocks</a>
       </div>
       <div class="home-actions">
         <a class="gh-star" href="https://github.com/utkurock/rockdesign" target="_blank" rel="noopener noreferrer" title="Star rockdesign on GitHub">
@@ -192,12 +190,6 @@
             <span class="gh-label">Star</span>
             <span class="gh-count" hidden>—</span>
           </a>
-          <button class="ghost-btn" id="setupBtn" title="Run rockdesign on your own machine">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 17l6-6-6-6M12 19h8"/>
-            </svg>
-            Setup
-          </button>
         </div>
       </header>
 
@@ -215,6 +207,15 @@
     <header class="lightbox-head">
       <div class="lightbox-title" id="lightboxTitle"></div>
       <div class="lightbox-tools">
+        <div class="zoom-controls" aria-label="Zoom">
+          <button class="ghost-btn zoom-btn" id="lbZoomOut" title="Zoom out">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          </button>
+          <button class="ghost-btn zoom-level" id="lbZoomLevel" title="Reset zoom">100%</button>
+          <button class="ghost-btn zoom-btn" id="lbZoomIn" title="Zoom in">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
         <button class="ghost-btn" id="lbCopy" title="Copy HTML to clipboard">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8h2v11a2 2 0 0 0 2 2h11v-2"/></svg>
           Copy code
@@ -235,78 +236,6 @@
       </div>
     </header>
     <div class="lightbox-stage" id="lightboxStage"></div>
-  </div>
-
-  <!-- Setup modal -->
-  <div class="modal-backdrop" id="setupBackdrop" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
-      <header class="modal-head">
-        <div>
-          <h2 id="setupTitle">Set up rockdesign</h2>
-          <p class="modal-lead">Run this app locally. Five steps.</p>
-        </div>
-        <button class="icon-btn" id="setupClose" title="Close">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </header>
-
-      <div class="modal-body">
-        <ol class="steps">
-          <li class="step">
-            <span class="step-num">1</span>
-            <div class="step-body">
-              <div class="step-title">Install Claude Code</div>
-              <p class="step-desc">rockdesign drives your local <code>claude</code> CLI — no extra API key needed. The npm install works on macOS, Windows, and Linux.</p>
-              <div class="codeblock" data-code="npm install -g @anthropic-ai/claude-code
-claude"><pre><code>npm install -g @anthropic-ai/claude-code
-claude</code></pre><button class="copy" type="button">Copy</button></div>
-            </div>
-          </li>
-
-          <li class="step">
-            <span class="step-num">2</span>
-            <div class="step-body">
-              <div class="step-title">Clone the repo</div>
-              <p class="step-desc">Or fork it first and replace the URL.</p>
-              <div class="codeblock" data-code="git clone https://github.com/your-user/rockdesign.git
-cd rockdesign"><pre><code>git clone https://github.com/your-user/rockdesign.git
-cd rockdesign</code></pre><button class="copy" type="button">Copy</button></div>
-            </div>
-          </li>
-
-          <li class="step">
-            <span class="step-num">3</span>
-            <div class="step-body">
-              <div class="step-title">Install dependencies</div>
-              <p class="step-desc">Only <code>express</code>. Requires Node 18+.</p>
-              <div class="codeblock" data-code="npm install"><pre><code>npm install</code></pre><button class="copy" type="button">Copy</button></div>
-            </div>
-          </li>
-
-          <li class="step">
-            <span class="step-num">4</span>
-            <div class="step-body">
-              <div class="step-title">Start the server</div>
-              <p class="step-desc">Default port is <code>4173</code>. Override with <code>PORT</code> env var (<code>PORT=5050 npm start</code> on macOS/Linux, <code>$env:PORT=5050; npm start</code> in PowerShell).</p>
-              <div class="codeblock" data-code="npm start"><pre><code>npm start</code></pre><button class="copy" type="button">Copy</button></div>
-            </div>
-          </li>
-
-          <li class="step">
-            <span class="step-num">5</span>
-            <div class="step-body">
-              <div class="step-title">Open in browser</div>
-              <p class="step-desc">Visit the URL in any modern browser. PNG export uses Chrome / Chromium / Edge / Brave from the standard install location — set <code>CHROME_PATH</code> env to override.</p>
-              <div class="codeblock" data-code="http://localhost:4173"><pre><code>http://localhost:4173</code></pre><button class="copy" type="button">Copy</button></div>
-            </div>
-          </li>
-        </ol>
-
-        <div class="modal-tip">
-          <strong>Compatibility ·</strong> Tested on macOS, Windows 10/11, and Ubuntu. Needs Node ≥ 18 and Git. PNG export needs a Chromium-based browser; everything else is built-in. Drop images or <code>.fig</code> files into the chat and Claude will <code>Read</code> them during generation.
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Onboarding modal -->

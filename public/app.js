@@ -20,9 +20,6 @@ const attachPop = $('#attachPop');
 const attachChips = $('#attachChips');
 const fileInput = $('#fileInput');
 const figInput = $('#figInput');
-const setupBtn = $('#setupBtn');
-const setupBackdrop = $('#setupBackdrop');
-const setupClose = $('#setupClose');
 const contextBar = $('#contextBar');
 const onbBackdrop = $('#onbBackdrop');
 const onbClose = $('#onbClose');
@@ -83,29 +80,38 @@ zoomInBtn?.addEventListener('click', () => setZoom(zoom * 1.15));
 zoomOutBtn?.addEventListener('click', () => setZoom(zoom / 1.15));
 zoomLevelEl?.addEventListener('click', () => setZoom(1));
 
-// Cmd/Ctrl + wheel zooms; plain wheel scrolls naturally.
+// Figma-style infinite canvas: pan = translate on .board-row, NOT scroll.
+// Unlimited drag range, no edge clamping.
+let panX = 0, panY = 0;
+function applyBoardTransform() {
+  const row = boardEl.querySelector('.board-row');
+  if (row) row.style.transform = `translate(${panX}px, ${panY}px)`;
+}
+
+// Cmd/Ctrl + wheel zooms; plain wheel pans (trackpad two-finger scroll).
 boardEl.addEventListener('wheel', (e) => {
-  if (!(e.ctrlKey || e.metaKey)) return;
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    setZoom(zoom * factor);
+    return;
+  }
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-  setZoom(zoom * factor);
+  panX -= e.deltaX;
+  panY -= e.deltaY;
+  applyBoardTransform();
 }, { passive: false });
 
-// Click-and-drag pan on board background (not on cards' interactive bits).
+// Click-and-drag pan on board (works anywhere except interactive buttons).
 let panState = null;
 boardEl.addEventListener('mousedown', (e) => {
-  if (e.button !== 0) return; // left only
-  const onCard = e.target.closest('.board-card');
-  // Allow pan from card edges/iframe wrapper but not when clicking actions
+  if (e.button !== 0) return;
   if (e.target.closest('.card-act, .card-close, button, a, input, textarea, select')) return;
-  // Iframe pointer-events: none means clicks on phone screen hit .card-frame —
-  // we want those to pan too, but a quick click (no drag) still opens lightbox.
   panState = {
     x: e.clientX,
     y: e.clientY,
-    sl: boardEl.scrollLeft,
-    st: boardEl.scrollTop,
-    onCard,
+    px: panX,
+    py: panY,
     moved: false,
   };
 });
@@ -118,19 +124,57 @@ document.addEventListener('mousemove', (e) => {
     boardEl.classList.add('panning');
   }
   if (panState.moved) {
-    boardEl.scrollLeft = panState.sl - dx;
-    boardEl.scrollTop = panState.st - dy;
+    panX = panState.px + dx;
+    panY = panState.py + dy;
+    applyBoardTransform();
   }
 });
-document.addEventListener('mouseup', (e) => {
+document.addEventListener('mouseup', () => {
   if (!panState) return;
   const wasMoved = panState.moved;
   panState = null;
   boardEl.classList.remove('panning');
-  // If a drag happened, swallow the next click so we don't open the lightbox.
   if (wasMoved) {
     const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
     boardEl.addEventListener('click', swallow, { capture: true, once: true });
+  }
+});
+
+// Reset pan when user resets zoom (clicks the "100%" label).
+zoomLevelEl?.addEventListener('click', () => { panX = 0; panY = 0; applyBoardTransform(); });
+
+/* ---------- Lightbox zoom ---------- */
+const lbZoomInBtn = $('#lbZoomIn');
+const lbZoomOutBtn = $('#lbZoomOut');
+const lbZoomLevelEl = $('#lbZoomLevel');
+let lbZoom = 1;
+function applyLbZoom() {
+  document.documentElement.style.setProperty('--lb-zoom', String(lbZoom));
+  if (lbZoomLevelEl) lbZoomLevelEl.textContent = `${Math.round(lbZoom * 100)}%`;
+}
+function setLbZoom(z) {
+  lbZoom = Math.max(0.25, Math.min(3, z));
+  applyLbZoom();
+}
+applyLbZoom();
+lbZoomInBtn?.addEventListener('click', () => setLbZoom(lbZoom * 1.15));
+lbZoomOutBtn?.addEventListener('click', () => setLbZoom(lbZoom / 1.15));
+lbZoomLevelEl?.addEventListener('click', () => setLbZoom(1));
+
+// Click selection: clicking a card focuses it (green outline follows the
+// click); clicking empty board space clears the selection. Buttons and the
+// menu stop propagation themselves, so they don't trigger selection.
+boardEl.addEventListener('click', (e) => {
+  const card = e.target.closest('.board-card');
+  if (card) {
+    if (card.dataset.id && card.dataset.id !== activeId) focusBoardItem(card.dataset.id);
+    return;
+  }
+  if (activeId !== null) {
+    activeId = null;
+    boardEl.querySelectorAll('.board-card.active').forEach((c) => c.classList.remove('active'));
+    renderTabs();
+    renderThread();
   }
 });
 
@@ -307,6 +351,7 @@ function renderBoard() {
     row.appendChild(buildCard(item));
   });
   boardEl.appendChild(row);
+  applyBoardTransform();
 }
 
 function getGroupSiblings(item) {
@@ -379,79 +424,84 @@ function buildCard(item) {
   card.dataset.id = item.id;
   card.dataset.target = getCardTarget(item);
 
-  const siblings = getGroupSiblings(item);
-
-  // Head
-  const head = makeEl('div', 'card-head');
-  const titleWrap = makeEl('div', 'card-title-wrap');
-  const prompt = makeEl('div', 'card-prompt', item.prompt);
-  prompt.title = item.prompt;
-  titleWrap.appendChild(prompt);
-  if (siblings) {
-    const sublabel = makeEl('div', 'card-sublabel');
-    const idx = siblings.findIndex((s) => s.id === item.id);
-    sublabel.textContent = `${item.pageLabel || `Page ${idx + 1}`} · ${idx + 1}/${siblings.length}`;
-    titleWrap.appendChild(sublabel);
-  }
-  head.appendChild(titleWrap);
-
-  // Page-nav arrows removed: all sibling pages are now opened side-by-side as
-  // separate cards, so prev/next would just swap one open card with another
-  // already-open one.
-
-  const stamp = makeEl('div', 'card-stamp', fmtDate(item.createdAt));
-  head.appendChild(stamp);
-  const closeBtn = makeEl('button', 'card-close');
-  closeBtn.type = 'button';
-  closeBtn.title = 'Close (kept in chat history)';
-  closeBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeBoardItem(item.id); });
-  head.appendChild(closeBtn);
-  card.appendChild(head);
-
-  // Frame (iframe preview, click → lightbox)
+  // Frame (iframe preview). Fullscreen now requires clicking the dedicated
+  // icon — the preview surface itself is intentionally inert.
   const frame = makeEl('div', 'card-frame');
-  frame.title = 'Click to open fullscreen';
   const iframe = makeEl('iframe');
   iframe.src = `/preview/${encodeURIComponent(item.id)}`;
   iframe.loading = 'lazy';
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('sandbox', 'allow-scripts');
   frame.appendChild(iframe);
-  frame.addEventListener('click', () => openLightbox(item.id));
   card.appendChild(frame);
 
-  // Foot — actions
-  const foot = makeEl('div', 'card-foot');
-  const copyBtn = makeEl('button', 'card-act');
-  copyBtn.type = 'button';
-  copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8h2v11a2 2 0 0 0 2 2h11v-2"/></svg> Copy code';
-  copyBtn.addEventListener('click', (e) => { e.stopPropagation(); copyCode(item.id, copyBtn); });
-  foot.appendChild(copyBtn);
+  // Floating controls in the top-right corner: maximize + 3-dots menu.
+  const controls = makeEl('div', 'card-controls');
 
-  const pngBtn = makeEl('button', 'card-act');
-  pngBtn.type = 'button';
-  pngBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg> PNG';
-  pngBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadPng(item.id, pngBtn); });
-  foot.appendChild(pngBtn);
+  const expandBtn = makeEl('button', 'card-ctrl-btn');
+  expandBtn.type = 'button';
+  expandBtn.title = 'Open fullscreen';
+  expandBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 4l6 6M20 20l-6-6"/></svg>';
+  expandBtn.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(item.id); });
+  controls.appendChild(expandBtn);
 
-  const pushBtn = makeEl('button', 'card-act');
-  pushBtn.type = 'button';
-  pushBtn.title = ctx.github ? `Push to ${ctx.github}` : 'Connect a GitHub repo to push';
-  pushBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v5.5"/></svg> Push';
-  pushBtn.addEventListener('click', (e) => { e.stopPropagation(); pushToGitHub(item.id, pushBtn); });
-  foot.appendChild(pushBtn);
+  const menuBtn = makeEl('button', 'card-ctrl-btn');
+  menuBtn.type = 'button';
+  menuBtn.title = 'More actions';
+  menuBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+  controls.appendChild(menuBtn);
+  card.appendChild(controls);
 
-  const openBtn = makeEl('button', 'card-act primary');
-  openBtn.type = 'button';
-  openBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l6-6M3 12l6 6M3 12h18"/></svg> Open';
-  openBtn.style.transform = 'scaleX(-1)';
-  // The above icon is "back-arrow"; replace with expand:
-  openBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 4l6 6M20 20l-6-6"/></svg> Open';
-  openBtn.style.transform = '';
-  openBtn.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(item.id); });
-  foot.appendChild(openBtn);
-  card.appendChild(foot);
+  const menu = makeEl('div', 'card-menu');
+  menu.hidden = true;
+  const makeMenuItem = (label, svg, onClick, extraClass) => {
+    const b = makeEl('button', 'card-menu-item' + (extraClass ? ' ' + extraClass : ''));
+    b.type = 'button';
+    b.innerHTML = `<span class="cmi-icon">${svg}</span><span class="cmi-label">${label}</span>`;
+    b.addEventListener('click', (e) => { e.stopPropagation(); onClick(b); });
+    menu.appendChild(b);
+    return b;
+  };
+  makeMenuItem(
+    'Copy code',
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8h2v11a2 2 0 0 0 2 2h11v-2"/></svg>',
+    (b) => copyCode(item.id, b),
+  );
+  makeMenuItem(
+    'Download PNG',
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg>',
+    (b) => downloadPng(item.id, b),
+  );
+  const pushItem = makeMenuItem(
+    'Push to GitHub',
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v5.5"/></svg>',
+    (b) => pushToGitHub(item.id, b),
+  );
+  pushItem.title = ctx.github ? `Push to ${ctx.github}` : 'Connect a GitHub repo to push';
+  makeMenuItem(
+    'Close',
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    () => closeBoardItem(item.id),
+    'danger',
+  );
+  card.appendChild(menu);
+
+  const closeMenu = () => {
+    menu.hidden = true;
+    menuBtn.classList.remove('open');
+    document.removeEventListener('click', onDocClick, true);
+  };
+  const onDocClick = (e) => { if (!menu.contains(e.target) && !menuBtn.contains(e.target)) closeMenu(); };
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menu.hidden) {
+      menu.hidden = false;
+      menuBtn.classList.add('open');
+      setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
+    } else {
+      closeMenu();
+    }
+  });
 
   return card;
 }
@@ -674,11 +724,52 @@ function appendPending(prompt, attachments) {
   pend.appendChild(makeEl('div', 'who', 'rockdesign'));
   const body = makeEl('div', 'body');
   body.appendChild(makeEl('div', 'spinner'));
-  body.appendChild(makeEl('span', null, 'Generating… takes 30–120 sec'));
+  const status = makeEl('span', 'pending-status', 'Starting up…');
+  body.appendChild(status);
   pend.appendChild(body);
+  const log = makeEl('div', 'pending-log');
+  pend.appendChild(log);
   threadEl.appendChild(pend);
   threadEl.scrollTop = threadEl.scrollHeight;
+  // Animated rotating tips so the user sees motion before the first file lands.
+  const tips = [
+    'Claude is reading your design system…',
+    'Sketching the first screen…',
+    'Composing the layout…',
+    'Writing styles inline…',
+    'Polishing details…',
+  ];
+  let tipIdx = 0;
+  const t0 = Date.now();
+  pend._tipTimer = setInterval(() => {
+    if (!pend.isConnected) { clearInterval(pend._tipTimer); return; }
+    if (pend.dataset.pages) return; // real progress overrides tips
+    tipIdx = (tipIdx + 1) % tips.length;
+    const secs = Math.floor((Date.now() - t0) / 1000);
+    status.textContent = `${tips[tipIdx]}  ·  ${secs}s`;
+  }, 2500);
+  pend._statusEl = status;
+  pend._logEl = log;
+  pend._t0 = t0;
   return pend;
+}
+
+// Update the pending message with live progress as pages are persisted.
+function updatePendingProgress(pend, newRecords) {
+  if (!pend || !pend.isConnected) return;
+  const status = pend._statusEl;
+  const log = pend._logEl;
+  if (!status || !log) return;
+  const existing = parseInt(pend.dataset.pages || '0', 10);
+  const total = existing + newRecords.length;
+  pend.dataset.pages = String(total);
+  for (const rec of newRecords) {
+    const entry = makeEl('div', 'pending-log-entry');
+    entry.innerHTML = `<span class="pending-check">✓</span> ${rec.pageLabel || rec.id}`;
+    log.appendChild(entry);
+  }
+  const secs = Math.floor((Date.now() - pend._t0) / 1000);
+  status.textContent = `Wrote ${total} ${total === 1 ? 'page' : 'pages'} so far…  ·  ${secs}s`;
 }
 
 function appendError(msg, pendingEl) {
@@ -749,8 +840,9 @@ async function generate(e) {
         if (!openIds.includes(d.id)) openIds.push(d.id);
       });
       saveOpenIds();
-      if (!pendRemoved) { pend.remove(); pendRemoved = true; }
-      renderThread();
+      // Keep the pending message visible — update it with live progress
+      // so the user knows the system is actually working, not stuck.
+      updatePendingProgress(pend, newOnes);
       renderBoard();
       renderTabs();
     } catch { /* swallow — next tick retries */ }
@@ -974,45 +1066,6 @@ chatEl.addEventListener('drop', (e) => {
   dragDepth = 0;
   chatEl.classList.remove('drag-over');
   Array.from(e.dataTransfer.files || []).forEach(uploadFile);
-});
-
-/* ---------- Setup modal ---------- */
-function openSetup() {
-  setupBackdrop.hidden = false;
-  document.body.style.overflow = 'hidden';
-}
-function closeSetup() {
-  setupBackdrop.hidden = true;
-  document.body.style.overflow = '';
-}
-
-setupBtn.addEventListener('click', openSetup);
-setupClose.addEventListener('click', closeSetup);
-setupBackdrop.addEventListener('click', (e) => {
-  if (e.target === setupBackdrop) closeSetup();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !setupBackdrop.hidden) closeSetup();
-});
-
-document.querySelectorAll('.codeblock .copy').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    const code = btn.parentElement.dataset.code
-      || btn.parentElement.querySelector('code')?.textContent
-      || '';
-    try {
-      await navigator.clipboard.writeText(code);
-      const original = btn.textContent;
-      btn.textContent = 'Copied';
-      btn.classList.add('copied');
-      setTimeout(() => {
-        btn.textContent = original;
-        btn.classList.remove('copied');
-      }, 1200);
-    } catch {
-      btn.textContent = 'Press ⌘C';
-    }
-  });
 });
 
 composerEl.addEventListener('submit', generate);
